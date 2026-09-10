@@ -8,7 +8,7 @@ const source = await readFile(file, 'utf8');
 if (source.length > 16384) throw new Error('IPFS acceptance configuration is too large.');
 const config = JSON.parse(source);
 if (typeof config.abiResource !== 'string' || typeof config.contentResource !== 'string') throw new Error('Both contract and content resources are required.');
-let stage = 'abi', abiReport; 
+let stage = 'abi', abiReport;
 try {
   const abi = await fetchIpfsAbi({ resource: config.abiResource, timeoutMs: 15000,
     ...(config.abiSha256 ? { expectedSha256: config.abiSha256 } : {}),
