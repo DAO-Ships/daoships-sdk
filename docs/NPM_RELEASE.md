@@ -64,3 +64,19 @@ environment protection and trusted publishing remain to be verified after reposi
 `npm pack` remains usable locally while the package is private. `prepublishOnly` blocks
 ordinary local publication when required release metadata is absent. It is a guard,
 not a substitute for repository/npm access controls or review of package contents.
+
+## Initial CLI bootstrap and automation state
+
+The initial publication is authorized through the maintainer's authenticated npm CLI.
+After selecting the license and finalizing metadata, run the complete validation gates,
+then `node scripts/test-package.mjs --save-release` to retain the exact validated archive.
+Publish that archive with `npm publish .release/daoships-sdk.tgz --ignore-scripts --access public --tag alpha`.
+An interactive npm 2FA challenge must be completed through npm's own authentication flow.
+This local bootstrap does not claim GitHub OIDC provenance. Verify the registry's published
+version, dist-tag, integrity and a fresh consumer installation afterward.
+
+Future OIDC publication is currently disabled. Its job requires the explicit repository
+variable `NPM_TRUSTED_PUBLISHING_ENABLED=true` as well as an approved publishing environment
+and matching npm trusted publisher. Automatic approval review rejected configuring future
+automated publishing under the initial-release authorization; no environment or trust
+relationship was installed. Configure and enable it only after that separate authorization.
