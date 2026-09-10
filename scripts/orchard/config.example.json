@@ -1,0 +1,25 @@
+{
+  "chainId": 15000,
+  "schema": "testnet",
+  "rpcUrl": "https://orchard.rpc.quai.network/cyprus1",
+  "contractsReviewed": false,
+  "deployment": {
+    "daoShipAndVaultLauncher": "0x0054Cb24fA412B2b276D5F73f4A7adC70f0f0Cbf",
+    "daoShipLauncher": "0x005D0D996cB3f25bEC37E1827FeAfCe5AC9f7856",
+    "quaiVaultFactory": "0x002d1305D597c157bB975967FA2e5337674b0E5F",
+    "multisendCallOnly": "0x002ae8A47C2da497fe569AfCF0486410aA1093E0",
+    "daoShipSingleton": "0x000F38Dc0B711a57086ca0bD6fa2041D8Cd9Fe03",
+    "sharesSingleton": "0x001a4f36ead605149A0144C771B7cbf4116753a9",
+    "lootSingleton": "0x002abA2592A1111b8EcfFcA98A7f30b8de30cA58",
+    "vaultSingleton": "0x004E539Cf477A5Cb456A56023f083cD91Bc4934e"
+  },
+  "poster": "0x0032eA61e8fF1b12A70C39696CfdA06198d2095e",
+  "vaultProxyArtifact": "../../../../QUAI-VAULT/quaivault-contracts/artifacts/contracts/QuaiVaultProxy.sol/QuaiVaultProxy.json",
+  "confirmations": 2,
+  "maxTransactions": 100,
+  "maxGasLimit": "12000000",
+  "maxFeePerGas": "1000000000000",
+  "maxValuePerTransaction": "0",
+  "waitTimeoutMs": 180000,
+  "saltStart": "0"
+}

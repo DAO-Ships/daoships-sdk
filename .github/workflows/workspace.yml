@@ -1,0 +1,72 @@
+name: SDK source and contract acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      contracts_ref:
+        description: DAO-Ships/daoships-contracts full commit SHA
+        required: true
+      app_ref:
+        description: DAO-Ships/daoships-app full commit SHA
+        required: true
+      indexer_ref:
+        description: DAO-Ships/daoships-indexer full commit SHA
+        required: true
+      vault_ref:
+        description: Quai-Vault/quaivault-contracts full commit SHA
+        required: true
+permissions:
+  contents: read
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require immutable source revisions
+        env:
+          CONTRACTS_REF: ${{ inputs.contracts_ref }}
+          APP_REF: ${{ inputs.app_ref }}
+          INDEXER_REF: ${{ inputs.indexer_ref }}
+          VAULT_REF: ${{ inputs.vault_ref }}
+        shell: bash
+        run: |
+          for revision in "$CONTRACTS_REF" "$APP_REF" "$INDEXER_REF" "$VAULT_REF"; do
+            [[ "$revision" =~ ^[a-fA-F0-9]{40}$ ]] || exit 1
+          done
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # checkout v7.0.1
+        with:
+          path: daoships-sdk
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # checkout v7.0.1
+        with:
+          repository: DAO-Ships/daoships-contracts
+          ref: ${{ inputs.contracts_ref }}
+          path: daoships-contracts
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # checkout v7.0.1
+        with:
+          repository: DAO-Ships/daoships-app
+          ref: ${{ inputs.app_ref }}
+          path: daoships-app
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # checkout v7.0.1
+        with:
+          repository: DAO-Ships/daoships-indexer
+          ref: ${{ inputs.indexer_ref }}
+          path: daoships-indexer
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # checkout v7.0.1
+        with:
+          repository: Quai-Vault/quaivault-contracts
+          ref: ${{ inputs.vault_ref }}
+          path: quaivault-contracts
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # setup-node v7.0.0
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts && npm run compile
+        working-directory: daoships-contracts
+      - run: npm ci --ignore-scripts && npm run compile
+        working-directory: quaivault-contracts
+      - run: npm ci --ignore-scripts && npm run validate:workspace
+        working-directory: daoships-sdk
+        env:
+          DAOSHIPS_TEST_VAULT_CONTRACTS: ${{ github.workspace }}/quaivault-contracts

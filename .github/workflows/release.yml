@@ -1,0 +1,75 @@
+name: Publish SDK to npm
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      archive-sha256: ${{ steps.archive.outputs.sha256 }}
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # checkout v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # setup-node v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install pinned OIDC-capable npm
+        run: npm install --global npm@11.19.0 --ignore-scripts
+      - run: npm ci --ignore-scripts
+      - name: Check package metadata, tag and source acceptance
+        run: node scripts/check-release.mjs --github-workspace
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - run: npm run test:coverage && npm run test:adapters
+      - name: Validate and retain the exact release archive
+        id: archive
+        run: node scripts/test-package.mjs --save-release
+      - name: Transfer the tested archive to the publisher
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # upload-artifact v7.0.1
+        with:
+          name: sdk-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .release/daoships-sdk.tgz
+          if-no-files-found: error
+          include-hidden-files: true
+          compression-level: 0
+          retention-days: 7
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # checkout v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # setup-node v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install pinned OIDC-capable npm
+        run: npm install --global npm@11.19.0 --ignore-scripts
+      - name: Retrieve this run's validated archive
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # download-artifact v8.0.1
+        with:
+          artifact-ids: ${{ needs.validate.outputs.artifact-id }}
+          path: .release
+          merge-multiple: true
+      - name: Publish the validated package with npm provenance
+        run: node scripts/publish-release.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DAOSHIPS_RELEASE_SHA256: ${{ needs.validate.outputs.archive-sha256 }}

@@ -1,0 +1,89 @@
+{
+  "name": "@daoships/sdk",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "description": "Typed DAOShips protocol SDK for applications, services and agents",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./abis": {
+      "types": "./dist/abis.d.ts",
+      "import": "./dist/abis.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts.d.ts",
+      "import": "./dist/contracts.js"
+    },
+    "./indexer": {
+      "types": "./dist/indexer.d.ts",
+      "import": "./dist/indexer.js"
+    },
+    "./bytecode": {
+      "types": "./dist/navigator-bytecodes.d.ts",
+      "import": "./dist/navigator-bytecodes.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "DESIGN.md",
+    "docs"
+  ],
+  "scripts": {
+    "build": "node scripts/clean-dist.mjs && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && npm run test:types && node scripts/run-tests.mjs",
+    "test:types": "tsc -p tsconfig.tests.json",
+    "test:contracts": "npm run build && node scripts/local-contract-smoke.cjs && node scripts/local-navigators-smoke.cjs && node scripts/local-deployment-workflow.cjs",
+    "sync:source": "node scripts/sync-abis.mjs && node scripts/generate-contract-types.mjs && node scripts/sync-navigators.mjs",
+    "check:source": "npm run build && node scripts/check-source.mjs && node scripts/generate-contract-types.mjs --check && node scripts/sync-navigators.mjs --check && node scripts/sync-app-navigators.mjs --check && node scripts/check-feature-coverage.mjs && node scripts/check-indexer-schema.mjs",
+    "prepack": "npm run build",
+    "prepublishOnly": "node scripts/check-release.mjs",
+    "check:release": "node scripts/check-release.mjs",
+    "test:adapters": "npm run build && node scripts/test-adapter-conformance.mjs",
+    "test:coverage": "npm run build && npm run test:types && node --experimental-test-coverage --test-coverage-include=dist/*.js --test-coverage-exclude=dist/abis.js --test-coverage-exclude=dist/navigator-bytecodes.js --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=95 scripts/run-tests.mjs",
+    "test:package": "npm run build && node scripts/test-package.mjs",
+    "test:package:registry": "npm run build && node scripts/test-package.mjs --registry-install",
+    "test:indexer:live": "npm run build && node scripts/test-live-indexer.mjs",
+    "test:indexer:hosted": "npm run build && node scripts/test-hosted-indexer.mjs",
+    "validate": "npm run test:coverage && npm run test:package",
+    "validate:workspace": "npm run validate && npm run check:source && npm run test:contracts && npm run test:adapters",
+    "sync:app:navigators": "node scripts/sync-app-navigators.mjs --write",
+    "test:realtime:live": "npm run build && node scripts/test-live-realtime.mjs",
+    "test:ipfs:live": "npm run build && node scripts/test-live-ipfs.mjs",
+    "test:orchard": "npm run build && node scripts/orchard-acceptance.mjs"
+  },
+  "dependencies": {
+    "quais": "1.0.0-alpha.53"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DAO-Ships/daoships-sdk.git"
+  },
+  "homepage": "https://github.com/DAO-Ships/daoships-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/DAO-Ships/daoships-sdk/issues"
+  },
+  "keywords": [
+    "daoships",
+    "dao",
+    "quai",
+    "sdk",
+    "governance",
+    "typescript"
+  ]
+}
