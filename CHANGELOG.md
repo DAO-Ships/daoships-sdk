@@ -2,7 +2,7 @@
 
 ## 0.1.0-alpha.0
 
-Initial DAOShips SDK release candidate for early application, service and agent integration.
+Initial DAOShips SDK alpha for early application, service and agent integration.
 
 - Typed coverage of 17 contract interfaces and all 25 public indexer tables.
 - DAO governance, membership, tokens, treasury, metadata and eight navigator integrations.

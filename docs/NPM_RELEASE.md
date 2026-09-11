@@ -3,8 +3,8 @@
 The initial target is `@daoships/sdk@0.1.0-alpha.0`, on npm's `alpha` tag. The public
 GitHub repository is `DAO-Ships/daoships-sdk`; it has been created and this SDK is now
 a local Git checkout. GitHub organization admin access and ownership of the npm scope
-were verified through the restored CLI sessions. Publication remains disabled by
-`private: true` pending the package's license selection. No package has been published yet.
+were verified through the restored CLI sessions. The initial release uses the MIT license and public npm access. Its bootstrap is performed
+through the authenticated npm CLI; future automated publishing remains disabled.
 
 ## Repository setup
 

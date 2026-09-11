@@ -14,7 +14,7 @@ required. Coverage and source parity do not establish freedom from vulnerabiliti
 | Area | Current behavior |
 | --- | --- |
 | Durable recovery | Public store/executor conformance helpers test independent adapters, atomic CAS, exact bigint persistence, identity immutability and callback ordering. A disposable fsynced reference backend is exercised with competing processes, killed writers, lost acknowledgements and restart. It is test support, not a production database dependency. |
-| npm preparation | Pinned GitHub Actions prepare Node 22/24/26 CI, immutable sibling-source acceptance, tagged public publication and npm provenance through OIDC. Release metadata and successful source acceptance on the same SDK commit are required. The public SDK repository and CLI ownership are established; initial publication awaits the license choice. Hosted CI/source acceptance passed. Future automated publication remains disabled. |
+| npm preparation | Pinned GitHub Actions prepare Node 22/24/26 CI, immutable sibling-source acceptance, tagged public publication and npm provenance through OIDC. Release metadata and successful source acceptance on the same SDK commit are required. The public SDK repository and CLI ownership are established; the initial alpha uses MIT and is prepared for CLI publication. Hosted CI/source acceptance passed. Future automated publication remains disabled. |
 | IPFS | ABI/bytecode resources default to `ipfs.qu.ai`; other content defaults to `ipfs.io`, with explicit overrides. Reads bound body size, parsing complexity, time and cancellation. Bytecode requires an independently trusted keccak256 hash. JSON/ABI results distinguish gateway retrieval from trusted raw-byte SHA-256 verification. |
 | Hosted realtime | A real testnet checkpoint channel delivered changes, recovered from a forced socket interruption, refreshed snapshots and removed all channels. The adapter still treats realtime as invalidation and refetches authoritative rows. |
 | Profile order | The indexer records actual transaction/log positions for new Poster events. An additive migration and receipt-verified backfill are prepared. SDK ordered reads are opt-in; legacy schemas remain compatible, and unknown historical order remains explicitly incomplete. Accepted banner/theme-only vault posts also establish DAO profile authority, preventing later launcher overwrite. |
@@ -64,9 +64,9 @@ performed in this hardening work. The realtime check did not induce a reorg or w
    only when the service supports it. Existing missing evidence is never invented. Older incorrect profile-authority flags or
    launcher overwrites require a separate canonical-history repair; the position backfill
    does not repair materialized metadata.
-3. Select the SDK license and publish the initial alpha through the authenticated CLI.
+3. Publish and verify the initial MIT-licensed alpha through the authenticated CLI.
    The GitHub repository exists, npm scope ownership is verified, and hosted CI/source
-   acceptance passed. `private: true` remains until license selection. Future automated
+   acceptance passed. Release metadata now declares MIT and public npm access. Future automated
    publishing requires separate authorization and configuration.
 4. Replace the retiring `ipfs.io` content default and repeat live gateway acceptance.
 5. Complete populated indexer scenarios and keep verifying chain-head catch-up. Real reconnect
