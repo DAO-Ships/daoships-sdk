@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.1
+
+- Publish from matching GitHub version tags through npm trusted publishing.
+- Require source acceptance on the exact tagged commit and publish the verified test archive.
+- Serialize release runs and document the tag-based release procedure.
+
+The SDK runtime API and known alpha limitations are unchanged from `0.1.0-alpha.0`.
+
 ## 0.1.0-alpha.0
 
 Initial DAOShips SDK alpha for early application, service and agent integration.

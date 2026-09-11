@@ -14,7 +14,7 @@ release gates, and the [coverage matrix](docs/FEATURE_COVERAGE.md) for API cover
 ## Install and validate
 
 ```sh
-npm install @daoships/sdk@0.1.0-alpha.0
+npm install @daoships/sdk@0.1.0-alpha.1
 ```
 
 The `alpha` dist-tag tracks prereleases. This package is licensed under [MIT](LICENSE).
