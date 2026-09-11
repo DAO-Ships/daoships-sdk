@@ -1,10 +1,10 @@
 # Initial alpha source acceptance
 
 The initial SDK source was checked on GitHub at commit
-`540cc494a4ac4c54cadfafc0745c46e88f649286`:
+`0a85f593539d2713e9fbdb3fbb9c18970da592d7`:
 
-- [Node 22/24/26 CI](https://github.com/DAO-Ships/daoships-sdk/actions/runs/34539634406) passed.
-- [Source and contract acceptance](https://github.com/DAO-Ships/daoships-sdk/actions/runs/34539786181) passed.
+- [Node 22/24/26 CI](https://github.com/DAO-Ships/daoships-sdk/actions/runs/34606343038) passed.
+- [Source and contract acceptance](https://github.com/DAO-Ships/daoships-sdk/actions/runs/34606340961) passed.
 
 Source acceptance compiled and tested these immutable revisions:
 
@@ -20,7 +20,7 @@ The app and indexer revisions are available on their respective
 synchronization and indexer ordering/profile-authority work. Those branches have not
 been merged or deployed. The original local app/indexer main working trees were preserved.
 
-Re-run source acceptance for the final SDK release commit, using the same four revisions
+Re-run source acceptance for every subsequent SDK release commit, using the same four revisions
 unless the intended contract/data release changes. This evidence establishes repository
 source compatibility and local Solidity behavior; it does not establish funded Orchard
 acceptance, indexer migration rollout or publication to npm.
