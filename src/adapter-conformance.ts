@@ -32,8 +32,10 @@ function settings(options: AdapterConformanceOptions) {
     throw new DaoShipsError('INVALID_ARGUMENT', 'Conformance requires a fresh 1–64 character namespace, a 1–60000ms timeout and 2–32 contenders.');
   }
   const run = <T>(check: string, work: () => Promise<T>): Promise<T> => new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new DaoShipsError('TIMEOUT', 'Adapter conformance operation timed out; a write may still commit.', { check })), timeoutMs);
-    Promise.resolve().then(work).then(value => { clearTimeout(timer); resolve(value); }, cause => { clearTimeout(timer); reject(cause); });
+    const deadline = performance.now() + timeoutMs;
+    const expired = () => new DaoShipsError('TIMEOUT', 'Adapter conformance operation timed out; a write may still commit.', { check });
+    const timer = setTimeout(() => reject(expired()), timeoutMs);
+    Promise.resolve().then(work).then(value => { clearTimeout(timer); if (performance.now() >= deadline) reject(expired()); else resolve(value); }, cause => { clearTimeout(timer); reject(cause); });
   });
   return { namespace, contenders, run };
 }

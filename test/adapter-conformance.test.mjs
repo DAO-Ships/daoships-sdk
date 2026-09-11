@@ -8,6 +8,13 @@ import { InMemoryTransactionRecoveryStore } from '../dist/transaction-recovery.j
 import { openFileRecoveryStore, openFileWorkflowStore } from '../scripts/conformance/file-store.mjs';
 
 const H = '0x' + '11'.repeat(32);
+test('conformance does not accept an adapter opened after its deadline during an event loop stall', async () => {
+  const backing = new InMemoryTransactionRecoveryStore();
+  await assert.rejects(assertRecoveryStoreConformance(async () => {
+    const until = performance.now() + 20; while (performance.now() < until) {}
+    return backing;
+  }, { namespace: 'late-open', timeoutMs: 5 }), error => error.code === 'TIMEOUT' && error.details.check === 'open');
+});
 function executorFixture(mode = 'valid') {
   let broadcasts = 0, waits = 0;
   const plan = { id: H, steps: [{ id: 'create', kind: 'creation' }] };

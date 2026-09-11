@@ -1,4 +1,5 @@
 import { DaoShipsError } from './errors.js';
+import { streamedJson } from './data-transport.js';
 import { address, proposalId, uint } from './values.js';
 import { indexerShapes, indexerRecordOrderingShape, type OrderedRecordRow, type IndexerShape, type IndexerTable, type IndexerTables, type IndexerFilters, type IndexerExpression } from './indexer-models.js';
 export * from './indexer-models.js';
@@ -115,37 +116,7 @@ function isJson(value: unknown): boolean {
 
 async function readJson(response: Response, maxBytes: number, signal: AbortSignal): Promise<unknown> {
   // A custom fetch may expose only json(); native Fetch responses always expose body.
-  if (response.body === undefined) return response.json();
-  const advertised = response.headers.get('content-length');
-  if (advertised !== null && /^\d+$/.test(advertised) && Number(advertised) > maxBytes) {
-    void response.body?.cancel().catch(() => {});
-    throw new Error('Indexer response exceeds maxResponseBytes.');
-  }
-  if (response.body === null) throw new Error('Missing response body.');
-  const reader = response.body.getReader();
-  const abort = () => { void reader.cancel().catch(() => {}); };
-  signal.addEventListener('abort', abort, { once: true });
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    while (true) {
-      signal.throwIfAborted();
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > maxBytes) throw new Error('Indexer response exceeds maxResponseBytes.');
-      chunks.push(value);
-    }
-    signal.throwIfAborted();
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-  } finally {
-    signal.removeEventListener('abort', abort);
-    void reader.cancel().catch(() => {});
-    reader.releaseLock();
-  }
+  return response.body === undefined ? response.json() : streamedJson(response, maxBytes, signal);
 }
 
 function exactId(value: string | bigint): string {
@@ -223,7 +194,7 @@ export class DaoShipsIndexer {
         signal.addEventListener('abort', onAbort, { once: true });
       });
       const request = async (): Promise<Page<T> | bigint> => {
-        const response = await this.fetcher(url, { method: count ? 'HEAD' : 'GET', headers: count ? { ...this.headers, Prefer: 'count=exact' } : this.headers, signal, redirect: 'error' });
+        const response = await this.fetcher(url, { method: count ? 'HEAD' : 'GET', headers: { ...this.headers, ...(count ? { Prefer: 'count=exact' } : {}) }, signal, redirect: 'error' });
         if (!response.ok) {
           void response.body?.cancel().catch(() => {});
           throw new DaoShipsError('INDEXER_ERROR', 'Indexer request failed.', { status: response.status, table });

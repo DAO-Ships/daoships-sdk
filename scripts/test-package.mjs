@@ -118,6 +118,8 @@ assert.equal(sdk.parseTokenAmount('1.000000000000000001', 18), 10000000000000000
 assert.equal(sdk.decodeProposal(sdk.encodeProposal([call]))[0].value, 0n);
 assert.equal(sdk.getNavigatorRequirements('BudgetNavigator').vaultModule, true);
 assert.equal(typeof sdk.resolveVaultModulePredecessor, 'function');
+assert.equal(typeof sdk.DaoShipsProvider, 'function');
+assert.equal(sdk.OrchardProvider, sdk.DaoShipsProvider);
 const connection = await sdk.connectDaoShipsSupabase({ network: 'mainnet', fetch: async (_url, request) => {
   assert.equal(request.headers.apikey, sdk.DAOSHIPS_SUPABASE.publishableKey);
   assert.equal(request.headers.Authorization, undefined);
@@ -145,12 +147,18 @@ assert.equal(await indexer.count('daos'), 9007199254740993n);
 console.log('Packed ESM consumer imported all five subpaths and executed contract, value and indexer calls.');
 `);
   await writeFile(join(consumer, 'consumer.ts'), `
-import { parseTokenAmount, decodeProposal, buildDaoProfileUpdate, getNavigatorRequirements, resolveVaultModulePredecessor, type Hex } from '@daoships/sdk';
+import { DaoShipsProvider, OrchardProvider, parseTokenAmount, decodeProposal, buildDaoProfileUpdate, getNavigatorRequirements, resolveVaultModulePredecessor, type Hex } from '@daoships/sdk';
 import { CONTRACT_ABIS, type ContractName } from '@daoships/sdk/abis';
 import { ContractClient, type ContractMethods } from '@daoships/sdk/contracts';
 import { DaoShipsIndexer, type IndexerTables, type IndexerIterationOptions } from '@daoships/sdk/indexer';
 import { NAVIGATOR_BYTECODES } from '@daoships/sdk/bytecode';
 import { connectDaoShipsSupabase, type DaoShipsSupabaseOptions } from '@daoships/sdk';
+import type { JsonRpcProvider } from 'quais';
+declare const provider: DaoShipsProvider;
+const compatibleAlias: OrchardProvider = provider;
+const compatibleProvider: JsonRpcProvider = provider;
+const providerFactory = (url: string) => new DaoShipsProvider(url, 9, { usePathing: true });
+void [compatibleProvider, compatibleAlias, providerFactory];
 const hosted: DaoShipsSupabaseOptions = { network: 'mainnet', health: { expectedBlock: 123n } };
 // @ts-expect-error Hosted connections require an explicit network.
 connectDaoShipsSupabase({});

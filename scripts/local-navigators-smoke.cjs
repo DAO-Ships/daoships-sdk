@@ -66,6 +66,9 @@ async function main() {
     SubscriptionNavigator: { ...base, tokens: [ethers.ZeroAddress, await token.getAddress()], feesPerPeriod: [10n, 20n], periodDuration: 3600n, graceDuration: 60n, startTime: 0n, collectorRewardBps: 0n, burnOnCollect: true, initialMembers: [member.address] },
   };
   const navs = {};
+  const { FunctionCoverage } = require('./local-function-coverage.cjs');
+  const coverage = new FunctionCoverage(sdk, sdk.NAVIGATOR_KINDS);
+  const deployed = new Map();
   async function deployNavigator(kind, config) {
     const a = await artifact(kind);
     assert.equal(NAVIGATOR_BYTECODES[kind], a.bytecode, `${kind} bundled bytecode parity`);
@@ -74,6 +77,7 @@ async function main() {
     sdk.parseNavigatorDeploymentReceipt(receipt, receipt.contractAddress, { daoShip: daoAddress, deployer: owner.address, kind });
     const nav = new sdk.Navigator(kind, receipt.contractAddress, { call: request => ethers.provider.call(request) });
     assert.equal(await nav.read('navigatorType', []), kind);
+    deployed.set(nav.address.toLowerCase(), kind);
     return nav;
   }
   for (const kind of sdk.NAVIGATOR_KINDS) {
@@ -91,12 +95,22 @@ async function main() {
   fields[0] = await loot.getAddress(); fields[1] = await shares.getAddress();
   await (await dao.setUp(ethers.AbiCoder.defaultAbiCoder().encode(sdk.INIT_PARAMS_TYPES, fields))).wait();
   await (await owner.sendTransaction({ to: avatarAddress, value: 100000n })).wait();
-  const send = async (nav, method, args, signer = member, value = 0n) => (await signer.sendTransaction(nav.encode(method, args, value))).wait();
+  const send = async (nav, method, args, signer = member, value = 0n) => {
+    const call = nav.encode(method, args, value);
+    const receipt = await (await signer.sendTransaction(call)).wait();
+    coverage.write(deployed.get(nav.address.toLowerCase()), call, receipt);
+    return receipt;
+  };
   const throughAvatar = async (call) => {
     const args = [call.to, call.value, call.data, 0];
     const [success, returnData] = await avatar.execTransactionFromModuleReturnData.staticCall(...args);
     assert.ok(success, `Avatar call reverted: ${returnData}`);
-    await (await avatar.execTransactionFromModuleReturnData(...args)).wait();
+    const receipt = await (await avatar.execTransactionFromModuleReturnData(...args)).wait();
+    const kind = deployed.get(call.to.toLowerCase());
+    assert.ok(coverage.clients.get(kind).interface.fragments.some(f => f.type === 'event'
+      && sdk.parseContractEvents(receipt, kind, call.to, f.format()).length), 'Avatar inner call must emit a navigator event');
+    coverage.write(kind, call, receipt);
+    return receipt;
   };
   const advance = async seconds => { await hre.network.provider.send('evm_increaseTime', [seconds]); await hre.network.provider.send('evm_mine'); };
   const grantManager = async navigator => {
@@ -302,6 +316,143 @@ async function main() {
   await assert.rejects(send(budget, 'disburse', [1n, recipient.address, 51n]));
   await send(budget, 'disburse', [1n, recipient.address, 50n]);
   assert.equal(await budget.read('remainingTotal', [1n]), 0n);
-  console.log('Local navigator integration passed: all 8 bundled deployments; fixed/multiplier onboarding, Merkle membership, signed ERC20 permit/replay, NFT ownership/replay, weighted signal vote, timelock hash/delay/replay/cancel, vesting cliff/claim/loot/revoke, treasury module authorization/native/ERC20 batches/rollover/ceiling, subscription native/ERC20 dues/burn/conversion/reward/re-enrollment. Real DAO/tokens; MockAvatar replaces production QuaiVault.');
+  // Recovery paths must pay the requested recipient and reject ordinary callers.
+  // Force a local balance: plain sends to Onboarder trigger onboarding instead.
+  await hre.network.provider.send('hardhat_setBalance', [on.address, '0x11']);
+  await assert.rejects(send(on, 'withdrawStuckETH', [recipient.address, 17n], outsider));
+  const recoveredNative = await ethers.provider.getBalance(recipient.address);
+  await throughAvatar(on.encode('withdrawStuckETH', [recipient.address, 17n]));
+  assert.equal(await ethers.provider.getBalance(on.address), 0n);
+  assert.equal(await ethers.provider.getBalance(recipient.address), recoveredNative + 17n);
+  for (const nav of [tribute, subscription]) {
+    await (await token.mint(nav.address, 17n)).wait();
+    await assert.rejects(send(nav, 'withdrawStuckTokens', [await token.getAddress(), recipient.address, 17n], outsider));
+    const before = await token.balanceOf(recipient.address);
+    await throughAvatar(nav.encode('withdrawStuckTokens', [await token.getAddress(), recipient.address, 17n]));
+    assert.equal(await token.balanceOf(nav.address), 0n);
+    assert.equal(await token.balanceOf(recipient.address), before + 17n);
+  }
+
+  // Exercise both proof overloads against an actual nonempty SDK Merkle tree.
+  const allowedTribute = await deployNavigator('ERC20TributeNavigator', { ...configs.ERC20TributeNavigator, allowlistRoot: tree.tree[0] });
+  const allowedGate = await deployNavigator('NFTGatedNavigator', { ...configs.NFTGatedNavigator, allowlistRoot: tree.tree[0] });
+  await grantManager(allowedTribute); await grantManager(allowedGate);
+  await (await token.mint(allowedAddress, 10n)).wait();
+  await (await token.connect(allowedSigner).approve(allowedTribute.address, 10n)).wait();
+  await (await nft.mint(allowedAddress, 2n)).wait();
+  const allowedShares = await shares.balanceOf(allowedAddress);
+  await assert.rejects(send(allowedTribute, 'onboard(uint256,uint256,bytes32[])', [1n, 0n, []], allowedSigner));
+  await send(allowedTribute, 'onboard(uint256,uint256,bytes32[])', [1n, 0n, proof], allowedSigner);
+  assert.equal(await shares.balanceOf(allowedAddress), allowedShares + 1n);
+  assert.equal(await allowedGate.read('canOnboard(address,uint256,bytes32[])', [allowedAddress, 2n, proof]), true);
+  await assert.rejects(send(allowedGate, 'onboard(uint256,bytes32[])', [2n, []], allowedSigner));
+  await send(allowedGate, 'onboard(uint256,bytes32[])', [2n, proof], allowedSigner);
+  assert.equal(await shares.balanceOf(allowedAddress), allowedShares + 8n);
+  // Transfer cannot reset a token's lifetime claim.
+  await (await nft.connect(allowedSigner).transferFrom(allowedAddress, otherAllowedAddress, 2n)).wait();
+  assert.equal(await allowedGate.read('canOnboard(address,uint256,bytes32[])', [otherAllowedAddress, 2n, sdk.getAllowlistProof(tree, otherAllowedAddress)]), false);
+
+  // Pause semantics differ by navigator. Verify access control and real state.
+  for (const nav of [tribute, gate, timelock, budget]) {
+    await assert.rejects(send(nav, 'pause', [], outsider));
+    await throughAvatar(nav.encode('pause', []));
+    assert.equal(await nav.read('paused', []), true);
+    await assert.rejects(send(nav, 'unpause', [], outsider));
+    await throughAvatar(nav.encode('unpause', []));
+    assert.equal(await nav.read('paused', []), false);
+  }
+  await throughAvatar(vesting.encode('unpause', []));
+  assert.equal(await vesting.read('paused', []), false);
+
+  // Creator cancellation before start; avatar-only cancellation once voting opens.
+  const futureStart = BigInt((await ethers.provider.getBlock('latest')).timestamp + 120);
+  await send(signal, 'createPoll', ['Scheduled', 2n, futureStart, 60n], owner);
+  assert.equal(await signal.read('pollStatus', [1n]), BigInt(sdk.SignalPollStatus.Pending));
+  await assert.rejects(send(signal, 'vote', [1n, 0n], owner));
+  await assert.rejects(send(signal, 'cancelPoll', [1n], outsider));
+  await send(signal, 'cancelPoll', [1n], owner);
+  assert.equal(await signal.read('pollStatus', [1n]), BigInt(sdk.SignalPollStatus.Cancelled));
+  await send(signal, 'createPoll', ['Active cancellation', 2n, 0n, 60n], owner);
+  await assert.rejects(send(signal, 'cancelPoll', [2n], owner));
+  await throughAvatar(signal.encode('cancelPoll', [2n]));
+  await assert.rejects(send(signal, 'vote', [2n, 0n], owner));
+
+  // Pausing queue creation does not invalidate a matured change; emergency cancel does.
+  await throughAvatar(timelock.encode('queueChange', [changed]));
+  await throughAvatar(timelock.encode('pause', []));
+  await advance(601);
+  await send(timelock, 'executeChange', [2n, changed], outsider);
+  assert.equal((await timelock.read('queuedChanges', [2n]))[5], true);
+  await throughAvatar(timelock.encode('unpause', []));
+  await throughAvatar(timelock.encode('queueChange', [changed]));
+  await throughAvatar(timelock.encode('queueChange', [changed]));
+  await assert.rejects(send(timelock, 'emergencyCancelAll', [], outsider));
+  await throughAvatar(timelock.encode('emergencyCancelAll', []));
+  assert.equal(await timelock.read('paused', []), true);
+  for (const changeId of [3n, 4n]) {
+    assert.equal((await timelock.read('queuedChanges', [changeId]))[6], true);
+    await assert.rejects(send(timelock, 'executeChange', [changeId, changed], outsider));
+  }
+  await throughAvatar(timelock.encode('unpause', []));
+  await throughAvatar(timelock.encode('queueChange', [changed]));
+  await advance(4201);
+  assert.equal(await timelock.read('isExecutable', [5n]), false);
+  await assert.rejects(send(timelock, 'executeChange', [5n, changed], outsider));
+
+  // Rotation immediately transfers spending power; an unsuccessful batch rolls back
+  // earlier transfers and both counters (the second recipient rejects native value).
+  await throughAvatar(budget.encode('createBudget', [member.address, ethers.ZeroAddress, 100n, 200n, 3600n, 0n, 0n]));
+  await assert.rejects(send(budget, 'updateManager', [2n, outsider.address]));
+  await throughAvatar(budget.encode('updateManager', [2n, outsider.address]));
+  await assert.rejects(send(budget, 'disburse', [2n, recipient.address, 1n]));
+  await throughAvatar(budget.encode('pause', []));
+  await assert.rejects(send(budget, 'disburse', [2n, recipient.address, 1n], outsider));
+  await throughAvatar(budget.encode('unpause', []));
+  const rejectingReceiver = await deploy('MockAvatarRejectETH');
+  const batchBefore = await ethers.provider.getBalance(recipient.address);
+  await assert.rejects(send(budget, 'disburseBatch', [2n, [recipient.address, await rejectingReceiver.getAddress()], [10n, 10n]], outsider));
+  assert.equal(await ethers.provider.getBalance(recipient.address), batchBefore);
+  assert.equal(await budget.read('remainingThisPeriod', [2n]), 100n);
+  assert.equal(await budget.read('remainingTotal', [2n]), 200n);
+  await send(budget, 'disburse', [2n, recipient.address, 10n], outsider);
+  assert.equal(await ethers.provider.getBalance(recipient.address), batchBefore + 10n);
+
+  // A third party can fund another member without extending the payer's deadline.
+  await assert.rejects(send(subscription, 'enroll', [owner.address], outsider));
+  await throughAvatar(subscription.encode('enroll', [owner.address]));
+  const ownerDeadline = await subscription.read('paidThrough', [owner.address]);
+  const payerDeadline = await subscription.read('paidThrough', [outsider.address]);
+  await send(subscription, 'payFeeFor', [owner.address, 2n, ethers.ZeroAddress], outsider, 20n);
+  assert.equal(await subscription.read('paidThrough', [owner.address]), ownerDeadline + 7200n);
+  assert.equal(await subscription.read('paidThrough', [outsider.address]), payerDeadline);
+  const deadlineForGrace = await subscription.read('paidThrough', [owner.address]);
+  const at = async time => { await hre.network.provider.send('evm_setNextBlockTimestamp', [Number(time)]); await hre.network.provider.send('evm_mine'); };
+  await at(deadlineForGrace);
+  assert.equal(await subscription.read('isCurrent', [owner.address]), true);
+  await at(deadlineForGrace + 1n);
+  assert.equal(await subscription.read('inGracePeriod', [owner.address]), true);
+  assert.equal(await subscription.read('isDelinquent', [owner.address]), false);
+  await at(deadlineForGrace + 60n);
+  assert.equal(await subscription.read('inGracePeriod', [owner.address]), true);
+  await at(deadlineForGrace + 61n);
+  assert.equal(await subscription.read('isDelinquent', [owner.address]), true);
+
+  const readArgs = {
+    'mintedTo(address)': [member.address], 'canOnboard(address,uint256,bytes32[])': [member.address, 1n, []],
+    'canOnboard(address,uint256)': [member.address, 1n], 'claimed(uint256)': [1n], 'isEligible(address)': [member.address],
+    'isEligibleToken(address,uint256)': [member.address, 1n], 'getOptionVotes(uint256,uint8)': [0n, 1n],
+    'getResults(uint256)': [0n], 'hasVoted(uint256,address)': [0n, member.address], 'pollStatus(uint256)': [0n], 'polls(uint256)': [0n],
+    'isExecutable(uint256)': [0n], 'queuedChanges(uint256)': [0n], 'claimable(uint256)': [0n],
+    'getSchedules(address)': [recipient.address], 'schedules(uint256)': [0n], 'vested(uint256)': [0n],
+    'budgets(uint256)': [0n], 'remainingThisPeriod(uint256)': [0n], 'remainingTotal(uint256)': [0n],
+    'acceptedTokens(uint256)': [0n], 'feePerPeriod(address)': [ethers.ZeroAddress], 'inGracePeriod(address)': [owner.address],
+    'isCurrent(address)': [owner.address], 'isDelinquent(address)': [owner.address], 'isEnrolled(address)': [owner.address],
+    'nextDeadline(address)': [owner.address], 'paidThrough(address)': [owner.address], 'quote(uint256,address)': [1n, ethers.ZeroAddress],
+  };
+  for (const kind of sdk.NAVIGATOR_KINDS) {
+    await coverage.reads(kind, navs[kind], await ethers.getContractAt(kind, navs[kind].address), ethers.provider, readArgs);
+  }
+  coverage.assertComplete();
+  console.log('Local navigator integration passed: all 8 bundled deployments and every public function, with lifecycle, permission, payment, timing and rollback assertions. Real DAO/tokens; MockAvatar replaces production QuaiVault.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

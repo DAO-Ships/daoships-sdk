@@ -14,6 +14,7 @@ import { getNavigatorRequirements } from './navigator-permissions.js';
 import { encodePosterPost, POSTER_TAGS, posterTagTopic } from './poster.js';
 import { parseContractEvents } from './events.js';
 import { assertActionSucceeded, type Receipt } from './receipts.js';
+import { callProvider } from './provider-call.js';
 
 export type DeploymentAddressPolicy = 'cyprus1' | 'evm';
 export interface DeploymentWorkflowStep {
@@ -258,7 +259,7 @@ export async function prepareDAOShipLaunch(plan: DAOShipLaunchPlan, provider: Pl
     const prediction = await new ContractClient('QuaiVaultFactory', d.quaiVaultFactory, provider).read('predictWalletAddress', [d.daoShipAndVaultLauncher, toBeHex(v.salt, 32), v.owners, v.threshold, 0n, [plan.expected.daoShip], [d.multisendCallOnly]], read);
     if (!same(prediction, plan.expected.vault)) fail('Vault factory prediction differs from the reviewed proxy bytecode/configuration.', 'PLAN_CHANGED');
   }
-  await op.rpc(() => provider.call({ to: plan.call.to, from: plan.from, value: plan.call.value, data: plan.call.data, blockTag: block.blockNumber }));
+  await callProvider(provider, { to: plan.call.to, from: plan.from, value: plan.call.value, data: plan.call.data, blockTag: block.blockNumber }, op.settings);
   await op.stable(block);
   return { ...plan.call, chainId: plan.chainId, from: plan.from, checkedAt: block };
 }
@@ -453,7 +454,7 @@ export async function prepareDeploymentWorkflowStep(plan: DeploymentWorkflowPlan
   let transaction: PreparedTransaction | undefined;
   if (step.kind === 'transaction') {
     const call = step.calls[0]!;
-    await op.rpc(() => provider.call({ to: call.to, from: plan.from, data: call.data, value: call.value, blockTag: checkedAt.blockNumber }));
+    await callProvider(provider, { to: call.to, from: plan.from, data: call.data, value: call.value, blockTag: checkedAt.blockNumber }, op.settings);
     transaction = { ...call, chainId: plan.chainId, from: plan.from, checkedAt };
   }
   await op.stable(checkedAt);

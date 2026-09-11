@@ -28,32 +28,40 @@ export async function bounded<T>(work: (signal: AbortSignal) => Promise<T>, opti
 }
 
 export async function streamedBytes(response: Response, maxBytes: number, signal: AbortSignal): Promise<Uint8Array> {
-  if (!response.ok) { void response.body?.cancel().catch(() => {}); throw new DaoShipsError('INDEXER_ERROR', 'IPFS gateway request failed.', { status: response.status }); }
-  if (!response.body) throw new DaoShipsError('INVALID_RESPONSE', 'IPFS gateway returned no streamed body.');
+  if (!response.ok) { void response.body?.cancel().catch(() => {}); throw new DaoShipsError('INDEXER_ERROR', 'HTTP request failed.', { status: response.status }); }
+  if (!response.body) throw new DaoShipsError('INVALID_RESPONSE', 'Response has no streamed body.');
   const advertised = response.headers.get('content-length');
-  if (advertised && /^\d+$/.test(advertised) && Number(advertised) > maxBytes) { void response.body.cancel().catch(() => {}); throw new DaoShipsError('INVALID_RESPONSE', 'IPFS document exceeds maxBytes.'); }
-  const reader = response.body.getReader(), chunks: Uint8Array[] = [];
+  if (advertised && /^\d+$/.test(advertised) && Number(advertised) > maxBytes) { void response.body.cancel().catch(() => {}); throw new DaoShipsError('INVALID_RESPONSE', 'Response exceeds the byte limit.'); }
+  const reader = response.body.getReader();
   const abort = () => { void reader.cancel().catch(() => {}); };
   signal.addEventListener('abort', abort, { once: true });
-  let length = 0;
+  let length = 0, chunks = 0;
+  let bytes = new Uint8Array(0);
   try {
     while (true) {
       signal.throwIfAborted();
       const { done, value } = await reader.read();
       if (done) break;
-      length += value.byteLength;
-      if (length > maxBytes) throw new DaoShipsError('INVALID_RESPONSE', 'IPFS document exceeds maxBytes.');
-      chunks.push(value);
+      const nextLength = length + value.byteLength;
+      if (nextLength > maxBytes) throw new DaoShipsError('INVALID_RESPONSE', 'Response exceeds the byte limit.');
+      if (nextLength > bytes.length) {
+        const grown = new Uint8Array(Math.min(maxBytes, Math.max(4096, bytes.length * 2, nextLength)));
+        grown.set(bytes.subarray(0, length)); bytes = grown;
+      }
+      // Copy now: transports may reuse buffers, and tiny chunks must not retain
+      // an unbounded number of objects alongside an otherwise bounded payload.
+      bytes.set(value, length); length = nextLength;
+      // An in-memory stream can otherwise keep scheduling microtasks forever,
+      // starving the timers that deliver cancellation (even with empty chunks).
+      if (++chunks % 1024 === 0) await new Promise<void>(resolve => setTimeout(resolve, 0));
     }
     signal.throwIfAborted();
-    const bytes = new Uint8Array(length); let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-    return bytes;
+    return bytes.subarray(0, length);
   } finally { signal.removeEventListener('abort', abort); void reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
 export async function streamedJson(response: Response, maxBytes: number, signal: AbortSignal): Promise<unknown> {
   const bytes = await streamedBytes(response, maxBytes, signal);
   try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
-  catch { throw new DaoShipsError('INVALID_RESPONSE', 'IPFS document is not valid UTF-8 JSON.'); }
+  catch { throw new DaoShipsError('INVALID_RESPONSE', 'Response is not valid UTF-8 JSON.'); }
 }

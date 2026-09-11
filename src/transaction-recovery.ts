@@ -169,7 +169,9 @@ export class InProcessRecoveryCoordinator implements RecoveryCoordinator {
     const state = entry;
     if (state.queue.length >= this.maxQueuedPerAccount) return Promise.reject(new DaoShipsError('RECOVERY_BLOCKED', 'Coordinator queue capacity reached.'));
     return new Promise<T>((resolve, reject) => {
+      const deadline = performance.now() + waitTimeoutMs;
       let started = false, stopped = false;
+      const advance = () => { const next = state.queue.shift(); if (next) next(); else this.scopes.delete(scope); };
       const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', abort); };
       const cancel = () => {
         if (started || stopped) return;
@@ -182,10 +184,11 @@ export class InProcessRecoveryCoordinator implements RecoveryCoordinator {
       const timer = setTimeout(cancel, waitTimeoutMs);
       const start = () => {
         if (stopped) return;
+        if (signal?.aborted || performance.now() >= deadline) { cancel(); advance(); return; }
         started = true; cleanup(); state.active = true;
         Promise.resolve().then(work).then(resolve, reject).finally(() => {
           state.active = false;
-          const next = state.queue.shift(); if (next) next(); else this.scopes.delete(scope);
+          advance();
         });
       };
       if (signal?.aborted) { cancel(); return; }
@@ -241,10 +244,12 @@ function timeoutValue(value: number | undefined): number {
 }
 function bounded<T>(call: () => Promise<T>, timeoutMs: number, signal?: AbortSignal): Promise<T> {
   return new Promise<T>((resolve, reject) => {
+    const deadline = performance.now() + timeoutMs;
     let stopped = false;
     const finish = (error?: unknown, value?: T) => {
       if (stopped) return;
       stopped = true; clearTimeout(timer); signal?.removeEventListener('abort', abort);
+      if (error === undefined && performance.now() >= deadline) error = new DaoShipsError('TIMEOUT', 'Recovery RPC wait timed out.');
       if (error !== undefined) reject(error); else resolve(value!);
     };
     const abort = () => finish(new DaoShipsError('ABORTED', 'Recovery preflight was cancelled; no broadcast started.'));

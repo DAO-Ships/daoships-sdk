@@ -22,6 +22,15 @@ function argsFor(kind, method) {
   if (method.name === 'createBudget') {args[4] = 3600n; args[6] = 0n;}
   return args;
 }
+test('navigator reads use the zero sender by default for Orchard EOA validation', async () => {
+  const iface = new Interface(CONTRACT_ABIS.OnboarderNavigator);
+  const nav = new Navigator('OnboarderNavigator', A, { async call(request) {
+    assert.equal(request.from, ZERO);
+    assert.equal(request.to, A);
+    return iface.encodeFunctionResult('daoShip', [B]);
+  } });
+  assert.equal(await nav.read('daoShip', []), B);
+});
 test('every canonical navigator mutation and read is available, overloads are unambiguous, and read block/sender are preserved', async () => {
   for (const kind of NAVIGATOR_KINDS) {
     const iface = new Interface(CONTRACT_ABIS[kind]);

@@ -1,12 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Interface, TypedDataEncoder, AbiCoder, keccak256, toUtf8Bytes } from 'quais';
+import { Interface, ZeroAddress, TypedDataEncoder, AbiCoder, keccak256, toUtf8Bytes } from 'quais';
 import { ContractClient, CONTRACT_ABIS, parseContractEvents, decodeRevert,
   DaoShipsToken, parseTokenAmount, formatTokenAmount, buildPermitTypedData } from '../dist/index.js';
 
 const A = '0x0011111111111111111111111111111111111111';
 const B = '0x0022222222222222222222222222222222222222';
 const shares = new Interface(CONTRACT_ABIS.SharesERC20);
+test('contract reads use the zero sender by default for Orchard EOA validation', async () => {
+  const client = new ContractClient('SharesERC20', A, { async call(request) {
+    assert.equal(request.from, ZeroAddress);
+    assert.equal(request.to, A);
+    return shares.encodeFunctionResult('balanceOf', [42n]);
+  } });
+  assert.equal(await client.read('balanceOf', [B]), 42n);
+});
 test('typed contract calls encode writes and preserve read sender, block, named tuples and integers', async () => {
   const sdk = new ContractClient('SharesERC20', A, { async call(request) {
     assert.equal(request.from, B); assert.equal(request.blockTag, 42);

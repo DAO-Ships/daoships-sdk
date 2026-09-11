@@ -1,0 +1,257 @@
+{
+  "hash": "0x1604a9b26aa840677a91f2fd663b46b155505bb7dda979d1c3ec23648f37c62f",
+  "header": {
+    "avgTxFees": "0xac552037b5557f5f",
+    "baseFeePerGas": "0x10ae641d3ff6",
+    "conversionFlowAmount": "0x56bc75e2d63100000",
+    "efficiencyScore": "0x2e",
+    "etxEligibleSlices": "0x0100000000000000000000000000000000000000000000000000000000000000",
+    "etxRollupRoot": "0x26fdb502a6b45ee82928a651934a9c97892ec337f7c3edb8cd4fd243f68f9241",
+    "etxSetRoot": "0xb41aeba9f04359fa80a9801727adbcd374ff7c970b119dee67628b5d9d23bb7b",
+    "evmRoot": "0x81c625726fdeb75b92ae0ba61c11240e0cfbd741075e9ea3f44e8ba66472b566",
+    "exchangeRate": "0xb815924db8c94800",
+    "expansionNumber": "0x0",
+    "extraData": "0xd88876302e35362e300a88676f312e32362e31856c696e7578",
+    "gasLimit": "0x2faf080",
+    "gasUsed": "0x79b4f8",
+    "interlinkRootHash": "0x24cd7e5024da1b4a58a979609d9460421b22675780a12b7a561fbdf0ee8ffb39",
+    "kQuaiDiscount": "0x0",
+    "manifestHash": [
+      "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+      "0x71c8e7f5ec0c9c493ee4ff4bdd199063e9d92534bde3c68a489d3ecc3704e6c8",
+      "0x71c8e7f5ec0c9c493ee4ff4bdd199063e9d92534bde3c68a489d3ecc3704e6c8"
+    ],
+    "minerDifficulty": "0xff4f2a2b60",
+    "number": [
+      "0x21e40e",
+      "0x524abb"
+    ],
+    "outboundEtxsRoot": "0x0405b1829c0c3ec15ca7b95a950ee0c298090ee460a29b50a84abfa0585f0249",
+    "parentDeltaEntropy": [
+      "0x0",
+      "0x0",
+      "0x0"
+    ],
+    "parentEntropy": [
+      "0x1a565c9b604b2eaf35c62de1",
+      "0x1a565c9b604b2eaf35c62de1",
+      "0x1a565c9db2b50fde6a3459da"
+    ],
+    "parentHash": [
+      "0xb729920dddc171e11b2ba07f38961785584369d1fbe06af3daf753efa59d8b09",
+      "0xb729920dddc171e11b2ba07f38961785584369d1fbe06af3daf753efa59d8b09"
+    ],
+    "parentUncledDeltaEntropy": [
+      "0x0",
+      "0x0",
+      "0x0"
+    ],
+    "primeStateRoot": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+    "primeTerminusHash": "0xb729920dddc171e11b2ba07f38961785584369d1fbe06af3daf753efa59d8b09",
+    "quaiStateSize": "0x13f7d",
+    "receiptsRoot": "0x9e88119f07b9f98b2681735859fecf1c9ae1f1039e21374424b8bbbc14e37777",
+    "regionStateRoot": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+    "size": "0x2f6",
+    "stateLimit": "0x2faf080",
+    "stateUsed": "0x81c",
+    "thresholdCount": "0x0",
+    "totalFees": "0x682e2ca25799615d0",
+    "transactionsRoot": "0xfa4456c65bb451003bd9084f286025b254a2cd9dcde18f22b07500157595d5b6",
+    "uncleHash": "0xa5ed22acea119a89c815ceb4ae46aa8b45359813f06d4fd9838c28cef1a81752",
+    "uncledEntropy": "0x0",
+    "utxoRoot": "0x5a58aeff474f7ae476a24fdc1246ee2e7173991f5598f7b77080f934d02714b4"
+  },
+  "interlinkHashes": [],
+  "order": 2,
+  "outboundEtxs": [],
+  "size": "0x5272",
+  "subManifest": [],
+  "totalEntropy": "0x1a565cc88f75f1c60c4c13f3",
+  "transactions": [
+    {
+      "blockHash": "0x1604a9b26aa840677a91f2fd663b46b155505bb7dda979d1c3ec23648f37c62f",
+      "blockNumber": "0x9945b9",
+      "from": "0x00444527B9D59b472cAc180D47302d85dECa1957",
+      "gas": "0x4689a",
+      "gasPrice": "0x14049a45ee3e",
+      "hash": "0x00250001a57b3305e327c39fbfce466f57767e341a3ec1c57a35ff4b9ea8ce9b",
+      "input": "0xe2b8de5d0000000000000000000000000000000000000000000000063bf212b431ec0000000000000000000000000000000000000000000000000255d0092683770442bd000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000444527b9d59b472cac180d47302d85deca1957000000000000000000000000000000000000000000000000000000006aa440c90000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c761cbe3dd9acd6a782f9c0eb977db062ab6cfaf7d17b63e505016df3dd0676061c4d7ada12747850852b06fd621012ecb1766b5df65d6dbf37b65d7dd5981bac0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000002b2596ecf05c93a31ff916e8b456df6c77c750000000000000000000000000006c3e2aaae5db1bcd11a1a097ce572312eaddbb",
+      "nonce": "0x19",
+      "to": "0x000d6795e06eA4F460CA9572a51741342156305A",
+      "transactionIndex": "0x54",
+      "value": "0x0",
+      "type": "0x0",
+      "accessList": [
+        {
+          "address": "0x002b2596ecf05c93a31ff916e8b456df6c77c750",
+          "storageKeys": [
+            "0xf0c969379260978d64978a96e46e2b44a15e638fe84f335abe8f99dae02395d9",
+            "0xf6f40a386fa73d859b7447a3e0e6dcf0b3a3c6628cd59aaceb648706a5fb886a",
+            "0x317d7cf4ebac49ba62dc44d5b1068aa5ef71ef888d061f2d708441f1b8db00ec",
+            "0xd91620fc22670f55ab8998d3f1dd97707182df91ed1256461dc3a82b42ddcdc7"
+          ]
+        },
+        {
+          "address": "0x0018a110b6ca369dcf5ab062c72f049e93b9ede2",
+          "storageKeys": [
+            "0x34ec7121fdb0982ae8f0681568d8b2c3b2a1590f675a5128bc14cc796ce62b8a"
+          ]
+        },
+        {
+          "address": "0x00602f12ea0491f02865aa6c418815319e2a645b",
+          "storageKeys": [
+            "0x0000000000000000000000000000000000000000000000000000000000000009",
+            "0x000000000000000000000000000000000000000000000000000000000000000a",
+            "0x0000000000000000000000000000000000000000000000000000000000000008",
+            "0x000000000000000000000000000000000000000000000000000000000000000c",
+            "0x0000000000000000000000000000000000000000000000000000000000000006",
+            "0x0000000000000000000000000000000000000000000000000000000000000007"
+          ]
+        },
+        {
+          "address": "0x006c3e2aaae5db1bcd11a1a097ce572312eaddbb",
+          "storageKeys": [
+            "0xd91620fc22670f55ab8998d3f1dd97707182df91ed1256461dc3a82b42ddcdc7",
+            "0x53cea98bf0a0a34c14fc26cd72de810010484bb2735223ecfd0a1800229563c9"
+          ]
+        }
+      ],
+      "chainId": "0x9",
+      "v": "0x1",
+      "r": "0xcd1cea99c8e0c8390811d5d5eb3edb6715bd4da293c39d4903b0a5307f963d03",
+      "s": "0xb48b6fd298a870873b68230419f27af8507f3b39a4184782e4b584dc7c5862d"
+    }
+  ],
+  "uncles": [],
+  "woHeader": {
+    "data": "0x00",
+    "difficulty": "0x1046a23108b",
+    "hash": "0x1604a9b26aa840677a91f2fd663b46b155505bb7dda979d1c3ec23648f37c62f",
+    "headerHash": "0xac20f2d5d1a1235a525c29cbd5c5b0cc9510912de21c9cf8a1f68a4037d90e10",
+    "location": "0x0000",
+    "lock": "0x0",
+    "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "nonce": "0x0000000000000000",
+    "number": "0x9945b9",
+    "parentHash": "0xb729920dddc171e11b2ba07f38961785584369d1fbe06af3daf753efa59d8b09",
+    "primaryCoinbase": "0x006c515c33b7dd4f2A298626e3Bf931e05B480da",
+    "primeTerminusNumber": "0x21e40d",
+    "timestamp": "0x6aa43c2a",
+    "txHash": "0xf6d2f26812d5e472a6141d27b55985972c9a7a0f1f1c82a369530e90f6b09030"
+  },
+  "workshares": [
+    {
+      "data": "0x00",
+      "difficulty": "0x1046a23108b",
+      "hash": "0xdd41fb0e8228f839ea66e61f661ef291c682908650c336a69f0c2eab46949899",
+      "headerHash": "0x74b8e7af77b300defc84b7869a3af17035074a63461e32043f9a431eaabb6b48",
+      "location": "0x0000",
+      "lock": "0x0",
+      "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": "0x0000000000000000",
+      "number": "0x9945b9",
+      "parentHash": "0xb729920dddc171e11b2ba07f38961785584369d1fbe06af3daf753efa59d8b09",
+      "primaryCoinbase": "0x004e7A848a2F6A878da5F2985D64f1F61198bD0b",
+      "primeTerminusNumber": "0x21e40d",
+      "timestamp": "0x6aa43c26",
+      "txHash": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+    },
+    {
+      "data": "0x00",
+      "difficulty": "0x10432a0cc1c",
+      "hash": "0x49a0abb8fe3ef94fc7d30f421ccbf829ccff4faecc338ae6c8328ec7735c69b3",
+      "headerHash": "0xb7017864ae6f900fa178ec30c4fe89a2eca20ff79abf6b6ce1f9ef2f6f70e68e",
+      "location": "0x0000",
+      "lock": "0x0",
+      "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": "0x0000000000000000",
+      "number": "0x9945b8",
+      "parentHash": "0x7a02384dd97da1ec5d942994d01c94d15bfa443ae8939de332fca850ff604be2",
+      "primaryCoinbase": "0x0022646d0cbf8456E6f9f5a5dD6BBB9754ed30f1",
+      "primeTerminusNumber": "0x21e40c",
+      "timestamp": "0x6aa43c24",
+      "txHash": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+    },
+    {
+      "data": "0x00",
+      "difficulty": "0x1046a23108b",
+      "hash": "0xe3f58acf3774a623cb25b10a3802ae2410a9417772fccacc92998b5e933d2873",
+      "headerHash": "0x74b8e7af77b300defc84b7869a3af17035074a63461e32043f9a431eaabb6b48",
+      "location": "0x0000",
+      "lock": "0x0",
+      "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": "0x0000000000000000",
+      "number": "0x9945b9",
+      "parentHash": "0xb729920dddc171e11b2ba07f38961785584369d1fbe06af3daf753efa59d8b09",
+      "primaryCoinbase": "0x004e7A848a2F6A878da5F2985D64f1F61198bD0b",
+      "primeTerminusNumber": "0x21e40d",
+      "timestamp": "0x6aa43c26",
+      "txHash": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+    },
+    {
+      "data": "0x00",
+      "difficulty": "0x10432a0cc1c",
+      "hash": "0x4e302b4b768053ccfe3f4011de7993b899a6d38954d419877c50e55b3630e9ca",
+      "headerHash": "0xdabb8f3513406e1b52d33518c35a121b4c1e06d12f159a9825d7d245afcb7a74",
+      "location": "0x0000",
+      "lock": "0x0",
+      "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": "0x0000000000000000",
+      "number": "0x9945b8",
+      "parentHash": "0x7a02384dd97da1ec5d942994d01c94d15bfa443ae8939de332fca850ff604be2",
+      "primaryCoinbase": "0x00796637A22A9f4Eca22DB25aE3e170b07A7aA6F",
+      "primeTerminusNumber": "0x21e40c",
+      "timestamp": "0x6aa43c24",
+      "txHash": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+    },
+    {
+      "data": "0x00",
+      "difficulty": "0x1046a23108b",
+      "hash": "0xf6d5231b56f0c7914bc8592b91b9e4476d3a6ed5e5c2f5e5151c8c5d7ec90203",
+      "headerHash": "0x74b8e7af77b300defc84b7869a3af17035074a63461e32043f9a431eaabb6b48",
+      "location": "0x0000",
+      "lock": "0x0",
+      "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": "0x0000000000000000",
+      "number": "0x9945b9",
+      "parentHash": "0xb729920dddc171e11b2ba07f38961785584369d1fbe06af3daf753efa59d8b09",
+      "primaryCoinbase": "0x004e7A848a2F6A878da5F2985D64f1F61198bD0b",
+      "primeTerminusNumber": "0x21e40d",
+      "timestamp": "0x6aa43c26",
+      "txHash": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+    },
+    {
+      "data": "0x00",
+      "difficulty": "0x10432a0cc1c",
+      "hash": "0x2f0e6d279e55faca2b9d1661d4277008ceaf007fe772c9306367e67d25d39f1b",
+      "headerHash": "0xdabb8f3513406e1b52d33518c35a121b4c1e06d12f159a9825d7d245afcb7a74",
+      "location": "0x0000",
+      "lock": "0x0",
+      "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": "0x0000000000000000",
+      "number": "0x9945b8",
+      "parentHash": "0x7a02384dd97da1ec5d942994d01c94d15bfa443ae8939de332fca850ff604be2",
+      "primaryCoinbase": "0x00796637A22A9f4Eca22DB25aE3e170b07A7aA6F",
+      "primeTerminusNumber": "0x21e40c",
+      "timestamp": "0x6aa43c24",
+      "txHash": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+    },
+    {
+      "data": "0x00",
+      "difficulty": "0x10432a0cc1c",
+      "hash": "0xc74ec15ca9dbead85cd56407df9fcb44ffb162f177e09e297320ef7e149a9eaa",
+      "headerHash": "0x736c7ac96edb051eaeb1c885112e825dd4694ad6563d5e044b3676bac573c3bb",
+      "location": "0x0000",
+      "lock": "0x0",
+      "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": "0x0000000000000000",
+      "number": "0x9945b8",
+      "parentHash": "0x7a02384dd97da1ec5d942994d01c94d15bfa443ae8939de332fca850ff604be2",
+      "primaryCoinbase": "0x004e7A848a2F6A878da5F2985D64f1F61198bD0b",
+      "primeTerminusNumber": "0x21e40c",
+      "timestamp": "0x6aa43c24",
+      "txHash": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+    }
+  ],
+  "workShares": []
+}

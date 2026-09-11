@@ -6,15 +6,26 @@ with higher-level helpers for governance, launch, navigators, membership and met
 
 This alpha targets early integration and testing. It has offline ABI, schema,
 compiler-artifact and regression checks, local Solidity execution, and live Supabase
-read/reconnect acceptance. Funded Orchard transaction acceptance remains outstanding;
-the configured combined launcher currently fails deployment-graph verification. Start with the
-[release readiness audit](docs/RELEASE_READINESS.md) for current findings and remaining
-release gates, and the [coverage matrix](docs/FEATURE_COVERAGE.md) for API coverage.
+read/reconnect acceptance. Recorded Orchard evidence covers funded smoke/recovery,
+all three launch routes and eight navigator activations, including non-owner Budget,
+plus populated indexer checks and a restart with no additional broadcasts.
+This release fixes the read-sender bug behind the earlier alpha's Orchard launcher
+failure; the live deployment graph now verifies. Start with the
+[SDK security and stability review](docs/SDK_AUDIT_2026-09-11.md) for current findings
+and verification, [release readiness](docs/RELEASE_READINESS.md) for release gates,
+and the [coverage matrix](docs/FEATURE_COVERAGE.md) for API coverage.
+
+All 228 DAO/navigator functions now have local SDK execution/read coverage: 65 writes
+and 163 reads. The [function audit](docs/DAO_NAVIGATOR_FUNCTION_COVERAGE.md) separates
+this from live Orchard coverage and lists remaining scenarios. This release also
+exports `DaoShipsProvider`, which preserves RPC nonces with the pinned quais formatter;
+use it for mainnet and Orchard signing, reads and recovery. `OrchardProvider` remains
+a compatibility alias.
 
 ## Install and validate
 
 ```sh
-npm install @daoships/sdk@0.1.0-alpha.1
+npm install @daoships/sdk@0.1.0-alpha.2
 ```
 
 The `alpha` dist-tag tracks prereleases. This package is licensed under [MIT](LICENSE).
@@ -32,6 +43,8 @@ npm run test:package:registry # optional: fresh npm dependency download and isol
 npm run test:indexer:hosted -- mainnet # optional: live public Supabase acceptance
 npm run test:adapters # durable CAS and multi-process crash/restart conformance
 npm run test:orchard -- --help # reviewed, explicit Orchard acceptance configuration
+npm run test:orchard:read # live Orchard readiness, no key required
+npm run test:orchard:smoke # opt-in self-transfer/recovery; ORCHARD_PRIVATE_KEY in .env
 npm run test:contracts # optional: uses sibling Hardhat dependencies and compiled artifacts locally
 npm run check:source   # optional: requires the sibling app/indexer/contracts sources and artifacts
 npm pack              # produces a local package; does not publish
@@ -41,6 +54,29 @@ npm run validate:workspace # all checks above when sibling artifacts are availab
 For an adjacent project, build the SDK and use `npm install ../daoships-sdk`, or install its
 packed tarball. ESM JavaScript, TypeScript declarations, source maps and integration docs ship
 in the package. `quais` is pinned to the repositories' `1.0.0-alpha.53` version.
+
+## RPC provider
+
+Use the same provider on mainnet and Orchard, with an explicit RPC URL and expected
+chain ID. [Quai network specifications](https://docs.qu.ai/build/networks) list the
+public endpoints. These constructors do not load keys or create wallets.
+
+```ts
+import { DaoShipsProvider } from '@daoships/sdk';
+
+const mainnet = new DaoShipsProvider(
+  'https://rpc.quai.network/cyprus1', 9, { usePathing: true },
+);
+const orchard = new DaoShipsProvider(
+  'https://orchard.rpc.quai.network/cyprus1', 15000, { usePathing: true },
+);
+```
+
+The shared provider corrects nonce formatting in pinned `quais@1.0.0-alpha.53`.
+Mainnet validation includes live SDK reads for chain identity, a transaction nonce and
+a prefetched block, plus a captured transaction/block regression. Funded lifecycle
+acceptance remains on Orchard.
+Applications select their network's deployed contract addresses separately.
 
 ## API coverage
 

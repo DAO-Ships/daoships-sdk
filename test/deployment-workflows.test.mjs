@@ -78,6 +78,18 @@ function memoryStore(initial=null) {
 const cp=(plan,steps,revision=1)=>({version:1,planId:plan.id,revision,steps});
 const invalid={code:'INVALID_ARGUMENT'},changed={code:'PLAN_CHANGED'},response={code:'INVALID_RESPONSE'};
 
+test('launch and deployment step simulations reject malformed or oversized RPC results', async () => {
+  for (const route of ['launch', 'step']) for (const raw of [undefined, '0x0', '0xgg', '0x' + '00'.repeat(1025)]) {
+    const plan = route === 'launch' ? launch() : nav('BudgetNavigator', { treasuryFunding: { token: TOKEN, amount: 3n } });
+    const stepId = route === 'launch' ? 'launch' : 'fund-treasury', f = fixture(plan, stepId), call = f.provider.call;
+    const payload = plan.steps.find(step => step.id === stepId).calls[0].data;
+    f.provider.call = async request => request.data === payload ? raw : call(request);
+    const options = { maxResponseBytes: 1024 };
+    await assert.rejects(route === 'launch' ? prepareDAOShipLaunch(plan, f.provider, options)
+      : prepareDeploymentWorkflowStep(plan, stepId, f.provider, options), response);
+  }
+});
+
 test('three immutable launch routes encode actual sender-sensitive predictions and all eight concrete navigator activation paths',()=>{
   const plans=['direct','existing-vault','new-vault'].map(launch);
   assert.notEqual(plans[0].expected.daoShip,plans[1].expected.daoShip);assert.equal(plans[1].expected.daoShip,plans[2].expected.daoShip);

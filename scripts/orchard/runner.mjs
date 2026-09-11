@@ -1,10 +1,12 @@
 import { resolve, dirname } from 'node:path';
-import { AbiCoder, ContractFactory, Interface, Wallet, QuaiTransaction, JsonRpcProvider, Shard, Zone, ZeroAddress, ZeroHash, concat, keccak256, toBeHex, getAddress } from 'quais';
+import { AbiCoder, ContractFactory, Interface, Wallet, QuaiTransaction, Shard, Zone, ZeroAddress, ZeroHash, concat, keccak256, toBeHex, getAddress } from 'quais';
+import { OrchardProvider } from './provider.mjs';
 import * as sdk from '../../dist/index.js';
 import { NAVIGATOR_BYTECODES } from '../../dist/navigator-bytecodes.js';
 import { runOrchardRecoveryScenarios } from './recovery-scenarios.mjs';
+import { verifyIndexedOrchardFixtures } from './indexer.mjs';
 import { openFileRecoveryStore, openFileWorkflowStore } from '../conformance/file-store.mjs';
-import { readBounded, openEvidence, encodeEvidence, evidenceHash, grindCreation, loadWalletKeys, boundedRead, boundedReadProvider } from './support.mjs';
+import { readBounded, openEvidence, encodeEvidence, evidenceHash, grindCreation, loadWalletKeys, boundedRead, boundedReadProvider, requireMinedRecovery, governanceExecutionId, waitForVotingSnapshot } from './support.mjs';
 
 const fail = (message, code = 'INVALID_ARGUMENT') => { throw new sdk.DaoShipsError(code, message); };
 const same = (a, b) => getAddress(a) === getAddress(b);
@@ -36,10 +38,13 @@ export async function inspectOrchard(config, provider, options = {}) {
     observedAt: new Date().toISOString(), posterCodeHash: keccak256(posterCode) };
 }
 export async function executeOrchard(config, { keysFile, evidenceDirectory, configDirectory = process.cwd() }) {
-  // Keys are never read for plan/read modes, from environment defaults, or sibling .env files.
+  // Called only in explicit execute mode. Wallet keys come from local .env or environment.
   const evidence = await openEvidence(evidenceDirectory), unlock = await evidence.lock();
-  const provider = boundedReadProvider(new JsonRpcProvider(config.rpcUrl, undefined, { usePathing: true }));
+  const provider = boundedReadProvider(new OrchardProvider(config.rpcUrl, undefined, { usePathing: true }));
+  let currentStage = 'readiness';
+  const progress = (stage, detail = {}) => { currentStage = stage; process.stderr.write(JSON.stringify({ stage, ...detail }) + '\n'); };
   try {
+    progress('readiness');
     const identity = { config, configDirectory: resolve(configDirectory) }, configHash = evidenceHash(identity);
     const previous = await evidence.get('configuration');
     if (previous && previous.hash !== configHash) fail('Evidence directory belongs to a different reviewed configuration.');
@@ -71,33 +76,36 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
     }
     const boundedSigner = signer => ({ provider, getAddress: () => signer.getAddress(), estimateGas: request => signer.estimateGas(request),
       async sendTransaction(request) {
-        const populated = await signer.populateTransaction(request);
+        const populated = await signer.populateQuaiTransaction(request);
         await checkBudget(populated);
         return signer.sendTransaction(populated);
       } });
-    async function confirmed(hash) {
-      const receipt = await provider.waitForTransaction(hash, config.confirmations, config.waitTimeoutMs);
+    async function confirmed(hash, confirmations = config.confirmations) {
+      const receipt = await provider.waitForTransaction(hash, confirmations, config.waitTimeoutMs);
       if (!receipt || receipt.status !== 1) fail('Transaction is pending or reverted; inspect evidence before continuing.', receipt?.status === 0 ? 'TX_REVERTED' : 'TX_PENDING');
       return receipt;
     }
-    async function send(id, call, signer, onSubmitted = async () => {}) {
+    async function send(id, call, signer, onSubmitted = async () => {}, confirmations = config.confirmations) {
+      progress('transaction', { id, operation: call.operation });
       const saved = await recovery.read(sdk.recoveryTransactionKey(id));
       let result;
       if (saved) {
         if (!same(saved.intent.from, signer.address) || !same(saved.intent.to, call.to) || saved.intent.data.toLowerCase() !== call.data.toLowerCase() || saved.intent.value !== call.value) fail('Recovery intent differs from its scenario action.');
         if (!saved.hash) fail('Uncertain transaction has no known hash; use explicit SDK recovery with independent RPC evidence.', 'TX_PENDING');
         await onSubmitted(saved.hash);
-        await confirmed(saved.hash);
-        result = await sdk.inspectRecoveryTransaction(recovery, provider, id, options);
+        await confirmed(saved.hash, confirmations);
+        result = await sdk.inspectRecoveryTransaction(recovery, provider, id, { ...options, confirmations });
       } else {
         const prepare = () => chain.prepareCall(call, signer.address);
         const sent = await sdk.sendRecoverableTransaction(await prepare(), boundedSigner(signer), { id, store: recovery, refresh: prepare, timeoutMs: 30000 });
+        progress('submitted', { id, hash: sent.transaction.hash });
         await onSubmitted(sent.transaction.hash);
-        result = await sdk.waitForRecoveryTransaction(recovery, provider, id, sent.transaction, { ...options, timeoutMs: config.waitTimeoutMs });
+        result = await sdk.waitForRecoveryTransaction(recovery, provider, id, sent.transaction, { ...options, confirmations, timeoutMs: config.waitTimeoutMs });
       }
-      if (result.outcome !== 'mined') fail('Recovery did not establish successful intended execution.', 'TX_PENDING');
+      requireMinedRecovery(result);
       const receipt = await provider.getTransactionReceipt(result.record.receipt.hash);
       await evidence.put(`receipt:${id}`, { id, hash: receipt.hash, blockHash: receipt.blockHash, blockNumber: receipt.blockNumber, status: receipt.status });
+      progress('confirmed', { id, hash: receipt.hash, blockNumber: receipt.blockNumber });
       return receipt;
     }
     async function creationNonce(signer) {
@@ -107,6 +115,7 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
       return nonce;
     }
     async function nativeCreate(id, signer, creation, onSubmitted = async () => {}) {
+      progress('creation', { id, expectedAddress: creation.expectedAddress });
       let saved = await evidence.get(`creation:${id}`);
       const intent = { chainId: 15000, from: signer.address, nonce: creation.quaiCreation.nonce, data: creation.creationData, expectedAddress: creation.expectedAddress };
       if (saved && evidenceHash(saved.intent) !== evidenceHash(intent)) fail('Creation intent differs from persisted evidence.');
@@ -121,7 +130,7 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
           if (!await recovery.compareAndSwap(accountKey, cursor?.revision ?? null, reserved)) fail('Creation nonce reservation raced another worker.', 'RECOVERY_CONFLICT');
           cursor = reserved;
         }
-        const request = await signer.populateTransaction({ from: signer.address, chainId: 15000n, nonce: intent.nonce, data: intent.data, value: 0n });
+        const request = await signer.populateQuaiTransaction({ from: signer.address, chainId: 15000n, nonce: intent.nonce, data: intent.data, value: 0n });
         request.gasLimit = (BigInt(request.gasLimit) * 120n + 99n) / 100n;
         await checkBudget(request);
         const signed = await signer.signTransaction(request), hash = QuaiTransaction.from(signed).hash;
@@ -129,6 +138,7 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
         await evidence.put(`creation:${id}`, saved);
         // Keep independent signed-hash evidence before broadcasting; this is not a submission acknowledgment.
         const sent = await provider.broadcastTransaction(Zone.Cyprus1, signed);
+        progress('submitted-creation', { id, hash: sent.hash });
         if (sent.hash.toLowerCase() !== hash.toLowerCase()) fail('Provider returned a different creation transaction hash.', 'INVALID_RESPONSE');
         await onSubmitted(hash);
       } else {
@@ -145,6 +155,7 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
       cursor = await recovery.read(accountKey);
       if (cursor?.blockedBy === id && !await recovery.compareAndSwap(accountKey, cursor.revision, { ...cursor, revision: cursor.revision + 1, blockedBy: null })) fail('Creation account release raced another worker.', 'RECOVERY_CONFLICT');
       await evidence.put(`creation:${id}`, { ...saved, status: 'verified', receipt: { hash: receipt.hash, blockHash: receipt.blockHash, blockNumber: receipt.blockNumber, contractAddress: receipt.contractAddress } });
+      progress('confirmed-creation', { id, hash: receipt.hash, contractAddress: receipt.contractAddress });
       return receipt;
     }
     async function auxiliary(name, args, source) {
@@ -178,7 +189,7 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
       return plan.address;
     }
     const initial = { multisendLibrary: config.deployment.multisendCallOnly,
-      governanceConfig: { votingPeriod: 60, gracePeriod: 0, proposalOffering: 0n, quorumPercent: 1000n, sponsorThreshold: 1n, minRetentionPercent: 0n, defaultExpiryWindow: 3600 },
+      governanceConfig: { votingPeriod: 180, gracePeriod: 0, proposalOffering: 0n, quorumPercent: 1000n, sponsorThreshold: 1n, minRetentionPercent: 0n, defaultExpiryWindow: 3600 },
       navigators: [], navigatorPermissions: [], initMembers: [owner.address, member.address], initShareAmounts: [1000n, 1000n], initLootAmounts: [0n, 0n],
       guildTokens: [ZeroAddress], pauseSharesOnLaunch: false, pauseLootOnLaunch: false };
     async function launchPlan(route, i) {
@@ -197,7 +208,7 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
       const start = (await evidence.get(`signal-start:${plan.id}`)).blockNumber;
       const latest = await provider.getBlock(Shard.Cyprus1, 'latest');
       if (latest.woHeader.number - start > 10000) fail('Signal endorsement scan exceeds its explicit 10000-block history bound.');
-      const logs = await provider.getLogs({ address: config.poster, fromBlock: start, toBlock: latest.woHeader.number,
+      const logs = await provider.getLogs({ nodeLocation: [0, 0], address: config.poster, fromBlock: start, toBlock: latest.woHeader.number,
         topics: [new Interface(sdk.CONTRACT_ABIS.Poster).getEvent('NewPost').topicHash] });
       logs.sort((a, b) => a.blockNumber - b.blockNumber || a.index - b.index);
       if ((await provider.getBlock(Shard.Cyprus1, latest.woHeader.number))?.hash !== latest.hash) fail('Signal history changed during its read.', 'PLAN_CHANGED');
@@ -222,10 +233,35 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
       'dao-governance': { async execute(plan, step, ctx) {
         const signer = same(plan.from, member.address) ? member : owner, client = new sdk.ContractClient('DAOShip', plan.daoShip, provider);
         if (plan.kind === 'BudgetNavigator' && await new sdk.ContractClient('QuaiVault', plan.vault, provider).read('isOwner', [signer.address])) fail('Budget acceptance requires a DAO member who is not a vault owner.');
-        const proposed = await send(`${ctx.id}/propose`, client.encode('submitProposal', [step.proposalData, 0n, 'Orchard SDK acceptance']), signer);
+        const executionId = await governanceExecutionId(evidence, ctx.id);
+        const retry = await evidence.get(`governance-retry:${ctx.id}`);
+        if (retry) {
+          // A reviewed retry must identify a canonical prior proposal; closure below
+          // authenticates its defeated outcome. Unknown broadcasts never select a retry.
+          const previous = await sdk.inspectRecoveryTransaction(recovery, provider, retry.previousProposalTransactionId, options);
+          requireMinedRecovery(previous);
+          if (previous.record.hash !== retry.previousProposalHash || !same(previous.record.intent.to, plan.daoShip)
+            || sdk.parseSubmitReceipt(await provider.getTransactionReceipt(previous.record.hash), plan.daoShip) !== retry.previousProposalId) fail('Governance retry differs from its reviewed proposal.', 'RECOVERY_BLOCKED');
+          if (retry.previousVoteId) {
+            const vote = await sdk.inspectRecoveryTransaction(recovery, provider, retry.previousVoteId, options);
+            if (vote.outcome !== 'reverted' || vote.record.hash !== retry.previousVoteHash) fail('Governance retry lacks its reviewed canonical revert.', 'RECOVERY_BLOCKED');
+          }
+          const closed = await send(`${executionId}/close-defeated`, client.encode('processProposal', [BigInt(retry.previousProposalId), '0x']), signer);
+          if (sdk.parseProcessReceipt(closed, plan.daoShip, retry.previousProposalId) !== 'defeated') fail('The prior failed-vote proposal did not close as defeated.', 'INVALID_RESPONSE');
+        }
+        // Act on the first canonical proposal receipt, then verify it at the configured
+        // depth after voting. Waiting for extra blocks before voting can exhaust a 60s window.
+        const proposed = await send(`${executionId}/propose`, client.encode('submitProposal', [step.proposalData, 0n, 'Orchard SDK acceptance']), signer, undefined, 1);
         const id = sdk.parseSubmitReceipt(proposed, plan.daoShip);
-        await send(`${ctx.id}/vote`, client.encode('submitVote', [BigInt(id), true]), signer);
-        const deadline = performance.now() + config.waitTimeoutMs;
+        const vote = client.encode('submitVote', [BigInt(id), true]);
+        if (!await recovery.read(sdk.recoveryTransactionKey(`${executionId}/vote`))) {
+          await waitForVotingSnapshot(() => chain.prepareCall(vote, signer.address), { timeoutMs: config.waitTimeoutMs });
+        }
+        await send(`${executionId}/vote`, vote, signer);
+        requireMinedRecovery(await sdk.inspectRecoveryTransaction(recovery, provider, `${executionId}/propose`, options));
+        // Chain timestamps can advance more slowly than wall time. Allow the full
+        // fixture period plus the configured transport/confirmation wait budget.
+        const deadline = performance.now() + (initial.governanceConfig.votingPeriod + initial.governanceConfig.gracePeriod) * 1000 + config.waitTimeoutMs;
         while (true) {
           const status = await chain.getProposal(plan.daoShip, id);
           if (status.state === sdk.ProposalState.Ready || status.state === sdk.ProposalState.Processed) break;
@@ -233,25 +269,27 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
           if (performance.now() >= deadline) fail('Voting has not ended within this run; resume the persisted scenario.', 'TX_PENDING');
           await delay(3000);
         }
-        const executed = await send(`${ctx.id}/process`, client.encode('processProposal', [BigInt(id), step.proposalData]), signer, ctx.onSubmitted);
+        const executed = await send(`${executionId}/process`, client.encode('processProposal', [BigInt(id), step.proposalData]), signer, ctx.onSubmitted);
         sdk.assertActionSucceeded(executed, plan.daoShip, id);
         return executed;
       } },
     };
     async function runPlan(plan) {
+      progress('workflow', { kind: plan.kind ?? plan.route, id: plan.id });
       const settings = { ...options, ...(plan.type === 'navigator' && plan.kind === 'SignalNavigator' ? { verifyCurrentSignalEndorsement: signalFresh } : {}) };
       for (let count = 0; count <= plan.steps.length; count++) {
         const before = await workflow.load(plan.id);
         try {
           const checkpoint = await sdk.advanceDeploymentWorkflow(plan, workflow, executors, provider, settings);
-          if (plan.steps.every(step => checkpoint.steps[step.id]?.status === 'verified')) { await evidence.put(`completed:${plan.id}`, checkpoint); return; }
+          if (plan.steps.every(step => checkpoint.steps[step.id]?.status === 'verified')) { await evidence.put(`completed:${plan.id}`, checkpoint); progress('completed-workflow', { kind: plan.kind ?? plan.route, id: plan.id }); return; }
         } catch (error) {
           const step = plan.steps.find(item => before?.steps[item.id]?.status !== 'verified');
           // This exact runner can resume its intermediate transaction IDs: each send first
           // reconciles durable recovery evidence, and unknown attempts still block.
           if (errorCode(error) !== 'TX_PENDING' || error.details?.stepId !== step?.id || before.steps[step.id]?.status !== 'submitting') throw error;
           const executionId = `${plan.id}:${step.id}`;
-          const finalKey = step.kind === 'creation' ? null : `${executionId}/${({ transaction: 'transaction', vault: 'execute', 'dao-governance': 'process' })[step.kind]}`;
+          const finalId = step.kind === 'dao-governance' ? await governanceExecutionId(evidence, executionId) : executionId;
+          const finalKey = step.kind === 'creation' ? null : `${finalId}/${({ transaction: 'transaction', vault: 'execute', 'dao-governance': 'process' })[step.kind]}`;
           const finalRecord = finalKey ? await recovery.read(sdk.recoveryTransactionKey(finalKey)) : await evidence.get(`creation:${executionId}`);
           if (finalRecord?.hash) {
             if (step.kind === 'creation') await nativeCreate(executionId, same(plan.from, member.address) ? member : owner, plan);
@@ -275,6 +313,28 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
     }
     let daoPlan;
     for (const [i, route] of ['direct', 'existing-vault', 'new-vault'].entries()) { const plan = await launchPlan(route, i); await runPlan(plan); if (route === 'new-vault') daoPlan = plan; }
+    // Older evidence retains its original 60s launch plan. Upgrade that disposable
+    // governance fixture through a real member proposal, preserving historical receipts.
+    const windowKey = 'fixture/governance-window', currentDao = await chain.getDao(daoPlan.expected.daoShip);
+    let windowPlan = await evidence.get(windowKey);
+    if (currentDao.votingPeriod < 180n || windowPlan) {
+      const expected = { id: `${daoPlan.id}:governance-window`, kind: 'governance-window', from: member.address,
+        daoShip: daoPlan.expected.daoShip, config: initial.governanceConfig,
+        proposalData: sdk.encodeProposal([sdk.buildGovernanceAction(daoPlan.expected.daoShip, { method: 'setGovernanceConfig', config: initial.governanceConfig })]) };
+      if (windowPlan && evidenceHash(windowPlan) !== evidenceHash(expected)) fail('Governance window plan changed.', 'PLAN_CHANGED');
+      if (!windowPlan) { windowPlan = expected; await evidence.put(windowKey, windowPlan); }
+      let completed = await evidence.get(`${windowKey}/completed`);
+      if (!completed) {
+        progress('governance-window', { seconds: 180 });
+        const receipt = await executors['dao-governance'].execute(windowPlan, windowPlan, { id: windowPlan.id, onSubmitted: async () => {} });
+        completed = { hash: receipt.hash, blockNumber: receipt.blockNumber, proposalId: Number(sdk.parseContractEvents(receipt, 'DAOShip', windowPlan.daoShip, 'ProcessProposal')[0].args.proposal) };
+        await evidence.put(`${windowKey}/completed`, completed);
+      }
+      const receipt = await confirmed(completed.hash);
+      sdk.assertActionSucceeded(receipt, windowPlan.daoShip, completed.proposalId);
+      const current = await chain.getDao(windowPlan.daoShip);
+      for (const [key, value] of Object.entries(windowPlan.config)) if (BigInt(current[key]) !== BigInt(value)) fail('Governance window update did not match its configuration.', 'INVALID_RESPONSE');
+    }
     const tribute = await auxiliary('MockERC20', ['Orchard Tribute', 'OT'], 'contracts/test/MockERC20.sol');
     const nft = await auxiliary('MockERC721', [], 'contracts/test/MockERC721.sol');
     const base = { daoShip: daoPlan.expected.daoShip, name: 'Orchard SDK acceptance', description: 'Dedicated testnet fixture' };
@@ -301,12 +361,17 @@ export async function executeOrchard(config, { keysFile, evidenceDirectory, conf
       await runPlan(plan);
     }
     const recoveryScenarios = await runOrchardRecoveryScenarios({ chain, provider, signer: boundedSigner(owner), store: recovery, evidence, confirmations: config.confirmations, timeoutMs: config.waitTimeoutMs });
+    progress('indexer-fixtures');
+    const indexed = await verifyIndexedOrchardFixtures({ evidence, provider, timeoutMs: config.waitTimeoutMs });
     const report = { status: 'completed', chainId: 15000, dependency: 'quais@1.0.0-alpha.53', configurationHash: configHash, recoveryScenarios,
+      indexer: { matched: indexed.matched, targetBlock: indexed.targetBlock, daoRows: indexed.launches.length, navigatorRows: indexed.navigators.length },
       scenarios: { daoLaunches: 3, navigatorActivations: 8, budgetActivatedByNonOwner: true },
       completedAt: new Date().toISOString(), limitations: ['Receipt depth is not a finality proof.', 'Acknowledgement loss is injected after a real transfer. Replacement races and process-crash conformance require separate evidence.'] };
     await evidence.put('report', report); return report;
   } catch (error) {
-    await evidence.put('last-failure', { code: errorCode(error), at: new Date().toISOString() });
+    const failure = { code: errorCode(error), stage: currentStage, ...(error instanceof sdk.DaoShipsError ? { message: error.message } : {}), at: new Date().toISOString() };
+    await evidence.put('last-failure', failure);
+    progress('stopped', { ...failure, stage: 'stopped', failedStage: failure.stage });
     throw new sdk.DaoShipsError(errorCode(error), 'Orchard acceptance stopped. Inspect public evidence and the documented recovery procedure.');
   } finally { await unlock(); provider.destroy(); }
 }

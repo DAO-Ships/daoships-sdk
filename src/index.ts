@@ -27,3 +27,6 @@ export * from './data-integrations.js';
 export * from './supabase.js';
 export * from './ipfs.js';
 export * from './adapter-conformance.js';
+export { DaoShipsProvider } from './provider.js';
+/** @deprecated Use DaoShipsProvider for mainnet and testnets. */
+export { DaoShipsProvider as OrchardProvider } from './provider.js';

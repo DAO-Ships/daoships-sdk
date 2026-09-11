@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Interface, getAddress } from 'quais';
+import { Interface, ZeroAddress, getAddress } from 'quais';
 import { discoverDeployment, verifyDeployment, minimalProxyImplementation } from '../dist/deployments.js';
 const contracts = Object.fromEntries(['daoShipAndVaultLauncher','daoShipLauncher','quaiVaultFactory','multisendCallOnly','daoShipSingleton','sharesSingleton','lootSingleton','vaultSingleton'].map((name, i) => [name, getAddress(`0x00${(BigInt(i) + 1n).toString(16).padStart(38, '0')}`)]));
 function fixture(overrides = {}) {
@@ -10,7 +10,7 @@ function fixture(overrides = {}) {
     async getNetwork() { return { chainId: 9n }; },
     async getBlock(_shard, block) { seen.push(['block', block]); return { hash: '0x' + 'ab'.repeat(32), woHeader: { number: 123 } }; },
     async call(tx) {
-      assert.equal(tx.blockTag, 123); assert.equal(tx.from, tx.to);
+      assert.equal(tx.blockTag, 123); assert.equal(tx.from, ZeroAddress);
       for (const method of views[tx.to] ?? []) {
         const iface = new Interface([`function ${method}() view returns (address)`]);
         if (tx.data === iface.encodeFunctionData(method)) return iface.encodeFunctionResult(method, [contracts[method === 'implementation' ? 'vaultSingleton' : method]]);

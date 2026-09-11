@@ -1,13 +1,30 @@
 # SDK initial-release readiness
 
-Reviewed 2026-09-10. This is the current release audit; earlier audit documents preserve
-historical findings and test counts. Scope is the DAOShips SDK and its contract, indexer
-and app integrations. No DAOShips product CLI was built.
+Release readiness reviewed 2026-09-10, with subsequent Orchard observations below.
+The [2026-09-11 SDK review](SDK_AUDIT_2026-09-11.md) records the latest security,
+stability and efficiency fixes and verification. Counts below preserve earlier
+results. Scope is the SDK and its contract, indexer and app integrations.
+
+2026-09-11 Orchard follow-up: current source fixes the default read sender that caused
+the launcher getter failure (`sender not an eoa`). The configured graph passed at
+block 7,780,370, and all 25 hosted testnet table projections passed in 67 read requests.
+A one-account `.env` smoke command passed a funded transfer and restart recovery
+(transaction `0x000f0022a4519b61544f491aedcb7bec94d6ef89cb08c1056cd89fea02d6400d`).
+The full two-wallet run then passed all three launch routes, all eight navigator
+activations (including non-owner Budget), populated fixture indexer checks and injected
+acknowledgement-loss recovery. It recorded 63 transactions: 61 successful and two
+reverted votes retained alongside their successful retries. Harness fixes cover pinned
+wallet/nonce/log-query compatibility and live voting timing. Current validation passed
+322 tests and the packed consumer checks. A completed-session restart added no
+transactions; total full-run fees were 0.0254071428 QUAI. These changes are included in `0.1.0-alpha.2`;
+see [Orchard acceptance](ORCHARD_ACCEPTANCE.md) for the current setup,
+coverage stages and remaining live scenarios. The observations below retain the
+original audit context.
 
 The SDK covers the current protocol ABI and public indexer surfaces. Release tooling,
 recovery adapter acceptance, IPFS routing, canonical profile ordering and an executable
-Orchard harness are implemented. Live funded acceptance and operational rollout remain
-required. Coverage and source parity do not establish freedom from vulnerabilities.
+Orchard harness are implemented. Broader live business scenarios and operational rollout
+remain required. Coverage and source parity do not establish freedom from vulnerabilities.
 
 ## Release hardening implemented
 
@@ -53,7 +70,7 @@ accepted but live row/business validation remains unexercised. No public-chain t
 live database migration/backfill, indexer service deployment or npm publication was
 performed in this hardening work. The realtime check did not induce a reorg or write rows.
 
-## Remaining release gates
+## Remaining release gates from the 2026-09-10 audit
 
 1. Resolve the configured Orchard launcher getter failure, then run the reviewed configuration with dedicated funded wallets; retain receipts,
    contract identities and restart evidence. Native shard behavior, replacement races,
@@ -80,6 +97,14 @@ No missing current ABI method/event or public indexer table was identified. Dedi
 preflight and receipt conveniences do not cover every generic contract call. Generic
 callers must verify authorization and business outcomes; a successful receipt can include
 an unsuccessful DAO proposal action.
+
+## DAO/navigator follow-up (2026-09-11)
+
+The [function audit](DAO_NAVIGATOR_FUNCTION_COVERAGE.md) establishes local SDK execution
+of all 65 DAO/navigator writes and 163 reads, with runtime completeness checks. The
+suite now includes four local Solidity scripts. `DaoShipsProvider` is exported from the
+SDK so consumers share the harness's exact-nonce fix. Full live business execution and
+broader boundary coverage remain outstanding; the validation figures below are historical.
 
 ## Validation
 

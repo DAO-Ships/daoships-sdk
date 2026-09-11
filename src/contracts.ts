@@ -1,4 +1,4 @@
-import { Interface, checkResultErrors, type BlockTag, type Provider, type FunctionFragment } from 'quais';
+import { Interface, ZeroAddress, checkResultErrors, type BlockTag, type Provider, type FunctionFragment } from 'quais';
 import { CONTRACT_ABIS, type ContractName } from './abis.js';
 import type { ContractMethods } from './contract-types.js';
 import { DaoShipsError } from './errors.js';
@@ -17,6 +17,7 @@ export type ReadMethod<K extends ContractName> = { [M in ContractMethod<K>]:
 export type WriteMethod<K extends ContractName> = Exclude<ContractMethod<K>, ReadMethod<K>>;
 export type ContractReadProvider = Pick<Provider, 'call'>;
 export interface ContractReadOptions extends AbiInputLimits {
+  /** Defaults to the zero address; supply an account for caller-dependent reads. */
   from?: string; blockTag?: BlockTag; signal?: AbortSignal;
   /** Bounds the SDK wait even if an injected provider never resolves. */
   timeoutMs?: number;
@@ -51,8 +52,7 @@ export class ContractClient<K extends ContractName> {
     if (!this.provider) throw new DaoShipsError('CHAIN_ERROR', 'A provider is required for contract reads.');
     const fragment = this.fragment(method, true);
     const normalized = normalizeAbiArguments(fragment.inputs, args, options);
-    const from = address(options.from ?? this.address);
-    const request = { to: this.address, from, data: this.interface.encodeFunctionData(fragment, normalized),
+    const request = { to: this.address, from: address(options.from ?? ZeroAddress), data: this.interface.encodeFunctionData(fragment, normalized),
       ...(options.blockTag !== undefined ? { blockTag: options.blockTag } : {}) };
     const raw = await callProvider(this.provider, request, options);
     try {

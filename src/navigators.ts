@@ -1,10 +1,11 @@
-import { Interface, checkResultErrors, type BlockTag, type Provider } from 'quais';
+import { Interface, ZeroAddress, checkResultErrors, type BlockTag, type Provider } from 'quais';
 import { CONTRACT_ABIS } from './abis.js';
 import { DaoShipsError } from './errors.js';
 import { address, hex, uint, type Hex } from './values.js';
 import { normalizeAbiArguments } from './abi-validation.js';
 import type { ContractReadOptions } from './contracts.js';
 import { callProvider } from './provider-call.js';
+import { parseContractEvents, type EventDecodeOptions } from './events.js';
 import type { NavigatorDeployConfig, NavigatorKind, NavigatorReads, NavigatorReadResults, NavigatorWrites } from './navigators-types.js';
 export type { NavigatorDeployConfig, NavigatorKind, NavigatorReads, NavigatorReadResults, NavigatorWrites } from './navigators-types.js';
 
@@ -115,7 +116,7 @@ export class Navigator<K extends NavigatorKind> {
     const fragment = methodFragment(this.interface, method);
     requireConfig(fragment && (fragment.stateMutability === 'view' || fragment.stateMutability === 'pure'), 'Expected navigator read method.');
     const normalized = normalizeAbiArguments(fragment.inputs, args, options);
-    const request = { to: this.address, from: address(options.from ?? this.address), data: this.interface.encodeFunctionData(fragment, normalized), ...(options.blockTag === undefined ? {} : { blockTag: options.blockTag }) };
+    const request = { to: this.address, from: address(options.from ?? ZeroAddress), data: this.interface.encodeFunctionData(fragment, normalized), ...(options.blockTag === undefined ? {} : { blockTag: options.blockTag }) };
     const raw = await callProvider(this.runner, request, options);
     try {
       const decoded = this.interface.decodeFunctionResult(fragment, raw);
@@ -160,14 +161,10 @@ export function parseNavigatorDeploymentReceipt(
   receipt: import('./receipts.js').Receipt,
   navigatorAddress: string,
   expected: { daoShip?: string; deployer?: string; kind?: NavigatorKind } = {},
+  options: EventDecodeOptions = {},
 ): NavigatorDeployment {
-  if (receipt.status !== 1) throw new DaoShipsError('TX_REVERTED', 'Navigator deployment receipt is not successful.');
-  const target = address(navigatorAddress), eventInterface = iface('OnboarderNavigator');
-  const matches = receipt.logs.flatMap(log => {
-    if (log.address.toLowerCase() !== target.toLowerCase()) return [];
-    try { const parsed = eventInterface.parseLog({ topics: [...log.topics], data: log.data }); return parsed?.name === 'NavigatorDeployed' ? [parsed] : []; }
-    catch { return []; }
-  });
+  const target = address(navigatorAddress);
+  const matches = parseContractEvents(receipt, 'OnboarderNavigator', target, 'NavigatorDeployed', options);
   if (matches.length !== 1) throw new DaoShipsError('MISSING_EVENT', 'Expected exactly one NavigatorDeployed event from this navigator.');
   const args = matches[0]!.args;
   const result = { navigatorAddress: target, daoShip: address(args.daoShip), deployer: address(args.deployer),

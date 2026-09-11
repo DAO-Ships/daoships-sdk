@@ -1,6 +1,6 @@
 {
   "name": "@daoships/sdk",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "Typed DAOShips protocol SDK for applications, services and agents",
   "type": "module",
   "engines": {
@@ -44,7 +44,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && npm run test:types && node scripts/run-tests.mjs",
     "test:types": "tsc -p tsconfig.tests.json",
-    "test:contracts": "npm run build && node scripts/local-contract-smoke.cjs && node scripts/local-navigators-smoke.cjs && node scripts/local-deployment-workflow.cjs",
+    "test:contracts": "npm run build && node scripts/local-contract-smoke.cjs && node scripts/local-dao-functions.cjs && node scripts/local-navigators-smoke.cjs && node scripts/local-deployment-workflow.cjs",
     "sync:source": "node scripts/sync-abis.mjs && node scripts/generate-contract-types.mjs && node scripts/sync-navigators.mjs",
     "check:source": "npm run build && node scripts/check-source.mjs && node scripts/generate-contract-types.mjs --check && node scripts/sync-navigators.mjs --check && node scripts/sync-app-navigators.mjs --check && node scripts/check-feature-coverage.mjs && node scripts/check-indexer-schema.mjs",
     "prepack": "npm run build",
@@ -61,7 +61,9 @@
     "sync:app:navigators": "node scripts/sync-app-navigators.mjs --write",
     "test:realtime:live": "npm run build && node scripts/test-live-realtime.mjs",
     "test:ipfs:live": "npm run build && node scripts/test-live-ipfs.mjs",
-    "test:orchard": "npm run build && node scripts/orchard-acceptance.mjs"
+    "test:orchard": "npm run build && node scripts/orchard-acceptance.mjs",
+    "test:orchard:read": "npm run build && node scripts/orchard-acceptance.mjs --read",
+    "test:orchard:smoke": "npm run build && node scripts/orchard-acceptance.mjs --smoke"
   },
   "dependencies": {
     "quais": "1.0.0-alpha.53"

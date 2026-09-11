@@ -2,6 +2,10 @@
 
 Audit date: 2026-09-09. Reviewed the SDK launch, CREATE2, governance, deployment discovery, all eight navigators, Poster and allowlist modules against sibling Solidity sources, ABI/build artifacts and the indexer's Poster validators. Changes affect the SDK only.
 
+The [2026-09-11 function audit](DAO_NAVIGATOR_FUNCTION_COVERAGE.md) supersedes the
+function-coverage gaps below: every DAO/navigator function now executes locally through
+the SDK. This earlier report retains historical behavior and boundary findings.
+
 ## Findings corrected
 
 | Finding | Effect before correction | Correction and regression evidence |

@@ -103,12 +103,14 @@ export async function confirmTransaction<R extends Receipt>(transaction: Waitabl
   const wait = transaction.wait.bind(transaction);
   const details = { hash };
   return new Promise<R>((resolve, reject) => {
+    const deadline = performance.now() + timeoutMs;
     let done = false;
     const finish = (error?: unknown, receipt?: R) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
       signal?.removeEventListener('abort', onAbort);
+      if (performance.now() >= deadline) error = new DaoShipsError('TX_PENDING', 'Confirmation timed out; the transaction may still confirm.', details);
       if (error) reject(error); else resolve(receipt!);
     };
     const onAbort = () => finish(new DaoShipsError('TX_PENDING', 'Stopped waiting; the transaction may still confirm.', details));

@@ -5,6 +5,10 @@ This audit compares the local Solidity contracts, app ABI artifacts, indexer sch
 See [release readiness](RELEASE_READINESS.md) for the latest audit, validation results and
 prioritized remaining release requirements. Earlier reports retain historical test counts.
 
+The [2026-09-11 function audit](DAO_NAVIGATOR_FUNCTION_COVERAGE.md) verifies local SDK
+execution of all 65 DAO/navigator writes and all 163 reads, with an ABI-driven
+completeness gate. It separately records live Orchard coverage and remaining gaps.
+
 Every public/external function declared by the 14 concrete DAOShips contracts is represented in the bundled ABI and generated `ContractClient` method types: DAOShip, both launchers, SharesERC20, LootERC20, Poster, and all eight navigators. Inherited token permit/voting methods, inherited navigator methods, and public storage/constant getters are included. External QuaiVault and QuaiVaultProxy ABI snapshots and the compiled IQuaiVaultFactory interface are also bundled (17 contract interfaces total). Overloaded methods use full Solidity signatures.
 
 `check:source` now verifies this against current-source compiler output and AST selectors:
@@ -55,7 +59,7 @@ the subsequent workflow comparison, added APIs and latest verification.
 
 ## Optional local contract execution
 
-`npm run test:contracts` runs local contract, navigator and deployment workflow suites using the existing sibling contracts project's Hardhat installation and compiled artifacts. The deployment suite also requires source-current artifacts from the adjacent QuaiVault contracts checkout. It starts only an in-process Hardhat network with deterministic local accounts, loads a separate configuration without dotenv/public endpoints, verifies each artifact's compiler metadata source dependency closure and bytecode, and leaves the sibling checkouts unchanged.
+`npm run test:contracts` runs local contract, DAO function, navigator and deployment workflow suites using the existing sibling contracts project's Hardhat installation and compiled artifacts. The deployment suite also requires source-current artifacts from the adjacent QuaiVault contracts checkout. It starts only an in-process Hardhat network with deterministic local accounts, loads a separate configuration without dotenv/public endpoints, verifies each artifact's compiler metadata source dependency closure and bytecode, and leaves the sibling checkouts unchanged.
 
 The smoke test has passed for all three SDK launch encoders, direct CREATE2 prediction, governance initialization, proposal hashing, submission/voting/processing, and a governance-wrapped MultiSend mint that changes the actual SharesERC20 balance. DAOShip, launchers, tokens and MultiSend execute compiled Solidity; the vault factory and avatars are explicit test doubles. This validates local EVM behavior, not Quai RPC/signing/shard behavior or production QuaiVault owner consensus.
 

@@ -49,6 +49,7 @@ test('DAO, member, capability and treasury reads preserve bigint and pin depende
   assert.deepEqual(treasury.tokens, [{ address: SHARES, balance: 123n }, { address: ZeroAddress, balance: 1n << 200n }]);
   assert.deepEqual(f.balances, [[VAULT, 123]]);
   assert.ok(f.calls.every(call => call.blockTag === 123));
+  assert.ok(f.calls.every(call => call.from === ZeroAddress), 'view calls must not use a contract as their sender');
 });
 test('native treasury provider failure has a stable SDK error', async () => {
   await assert.rejects(chainFixture({ nativeError: true }).chain.getTreasury(DAO), { code: 'CHAIN_ERROR' });

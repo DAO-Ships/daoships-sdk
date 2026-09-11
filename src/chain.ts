@@ -1,4 +1,4 @@
-import { Interface, Shard, isQuaiAddress, checkResultErrors, type Provider } from 'quais';
+import { Interface, Shard, ZeroAddress, isQuaiAddress, checkResultErrors, type Provider } from 'quais';
 import { DAO_SHIP_ABI } from './abi.js';
 import { DaoShipsError } from './errors.js';
 import { hashProposalData } from './encoding.js';
@@ -6,6 +6,7 @@ import { address, hex, proposalId, uint, type Hex } from './values.js';
 import { CONTRACT_ABIS } from './abis.js';
 import type { EncodedCall } from './contracts.js';
 import { quoteRagequit } from './conveniences.js';
+import { callProvider } from './provider-call.js';
 
 const daoInterface = new Interface(DAO_SHIP_ABI);
 const tokenInterface = new Interface(CONTRACT_ABIS.SharesERC20);
@@ -120,7 +121,7 @@ export class DaoShipsChain {
   private async read(to: string, method: string, args: readonly unknown[], block: number, iface = daoInterface) {
     const target = cyprusAddress(to);
     try {
-      const data = await this.rpc(() => this.provider.call({ from: target, to: target, data: iface.encodeFunctionData(method, args), blockTag: block }));
+      const data = await this.rpc(() => this.provider.call({ from: ZeroAddress, to: target, data: iface.encodeFunctionData(method, args), blockTag: block }));
       if (typeof data !== 'string' || data.length > this.maxResponseBytes * 2 + 2 || !/^0x(?:[\da-fA-F]{2})*$/.test(data)) {
         throw new DaoShipsError('INVALID_RESPONSE', 'Chain call response is malformed or exceeds the byte limit.');
       }
@@ -264,12 +265,8 @@ export class DaoShipsChain {
     block: { blockNumber: number; blockHash: string }): Promise<PreparedTransaction> {
     const transaction: PreparedTransaction = { ...call, chainId: this.chainId,
       checkedAt: { blockNumber: block.blockNumber, blockHash: block.blockHash } };
-    try {
-      await this.rpc(() => this.provider.call({ to: call.to, from: call.from, data: call.data, value: call.value, blockTag: block.blockNumber }));
-    } catch (cause) {
-      if (cause instanceof DaoShipsError) throw cause;
-      throw new DaoShipsError('CHAIN_ERROR', `${call.operation} simulation reverted.`, { operation: call.operation }, { cause });
-    }
+    await callProvider(this.provider, { to: call.to, from: call.from, data: call.data, value: call.value, blockTag: block.blockNumber },
+      { timeoutMs: this.timeoutMs, maxResponseBytes: this.maxResponseBytes });
     await this.verifySnapshot(block);
     return transaction;
   }

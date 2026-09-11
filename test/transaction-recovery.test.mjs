@@ -39,6 +39,34 @@ async function stored(f, id = f.options.id) { return f.store.read(recoveryTransa
 async function cursor(f) { return f.store.read(recoveryAccountKey(9, A)); }
 async function sent(f) { return sendRecoverableTransaction(f.prepared, f.signer, f.options); }
 
+test('late recovery preflight results cannot broadcast after the RPC deadline', async () => {
+  for (const stage of ['network', 'refresh', 'estimate']) {
+    const f = fixture(); f.options.timeoutMs = 5;
+    const stall = result => async () => { const until = performance.now() + 20; while (performance.now() < until) {} return result; };
+    if (stage === 'network') f.provider.getNetwork = stall({ chainId: 9n });
+    if (stage === 'refresh') f.options.refresh = stall(f.expected);
+    if (stage === 'estimate') f.signer.estimateGas = stall(100n);
+    await assert.rejects(sent(f), { code: 'TIMEOUT' });
+    assert.equal(f.calls.length, 0);
+    if (stage !== 'network') {
+      assert.equal((await stored(f)).status, 'not_sent');
+      assert.equal((await cursor(f)).blockedBy, null); assert.equal((await cursor(f)).nextNonce, 0);
+    }
+  }
+});
+
+test('an expired queued recovery operation never starts and does not strand following work', async () => {
+  const coordinator = new InProcessRecoveryCoordinator(), gate = deferred();
+  const first = coordinator.runExclusive('account', () => gate.promise);
+  let starts = 0;
+  const expired = coordinator.runExclusive('account', async () => { starts++; }, { waitTimeoutMs: 5 });
+  const rejected = assert.rejects(expired, { code: 'RECOVERY_BLOCKED' });
+  const next = coordinator.runExclusive('account', async () => 'next');
+  const until = performance.now() + 20; while (performance.now() < until) {}
+  gate.resolve();
+  await first; await rejected; assert.equal(await next, 'next'); assert.equal(starts, 0);
+});
+
 test('recovery persists reviewed intent and broadcasting marker before a one-shot nonce-bound send', async () => {
   const f = fixture(); const result = await sent(f);
   assert.equal(result.record.status, 'submitted'); assert.equal(result.record.hash, H);

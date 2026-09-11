@@ -1,4 +1,4 @@
-import { Interface, Shard, type Provider } from 'quais';
+import { Interface, Shard, ZeroAddress, type Provider } from 'quais';
 import { DaoShipsError } from './errors.js';
 import { address, hex, type Hex } from './values.js';
 import { isCyprus1Address } from './launch-create2.js';
@@ -64,7 +64,8 @@ export async function discoverDeployment(provider: DeploymentProvider, options: 
     const blockHash = block.hash;
     const read = async (to: Hex, method: string): Promise<Hex> => {
       const iface = new Interface([`function ${method}() view returns (address)`]);
-      const raw = bytes(await rpc(() => provider.call({ from: to, to, data: iface.encodeFunctionData(method), blockTag: blockNumber })));
+      // Quai rejects contract accounts as senders, including in read-only calls.
+      const raw = bytes(await rpc(() => provider.call({ from: ZeroAddress, to, data: iface.encodeFunctionData(method), blockTag: blockNumber })));
       const result = address(iface.decodeFunctionResult(method, raw)[0]);
       if (!isCyprus1Address(result) || BigInt(result) === 0n) throw new DaoShipsError('INVALID_RESPONSE', `${method} returned an unusable contract address.`, { to, result });
       return result;
