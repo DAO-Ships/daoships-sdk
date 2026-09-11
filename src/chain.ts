@@ -78,15 +78,15 @@ export class DaoShipsChain {
     });
   }
 
-  private async snapshot() {
-    try { return await this.readSnapshot(); }
+  private async snapshot(evmTime = false) {
+    try { return await this.readSnapshot(evmTime); }
     catch (cause) {
       if (cause instanceof DaoShipsError) throw cause;
       throw new DaoShipsError('CHAIN_ERROR', 'Unable to read the RPC network or latest block.', {}, { cause });
     }
   }
 
-  private async readSnapshot() {
+  private async readSnapshot(evmTime: boolean) {
     const network = await this.rpc(() => this.provider.getNetwork());
     if (network.chainId !== BigInt(this.chainId)) {
       throw new DaoShipsError('CHAIN_MISMATCH', 'RPC chain does not match the configured chain.',
@@ -95,9 +95,23 @@ export class DaoShipsChain {
     const block = await this.rpc(() => this.provider.getBlock(Shard.Cyprus1, 'latest'));
     if (typeof block?.hash !== 'string' || !/^0x[\da-fA-F]{64}$/.test(block.hash)) throw new DaoShipsError('CHAIN_ERROR', 'Could not read a mined Cyprus-1 block.');
     const blockNumber = block.woHeader.number;
-    const timestamp = Number(block.woHeader.timestamp);
+    let timestamp = Number(block.woHeader.timestamp);
     if (!Number.isSafeInteger(blockNumber) || blockNumber < 0 || !Number.isSafeInteger(timestamp) || timestamp < 1) {
       throw new DaoShipsError('INVALID_RESPONSE', 'Invalid Cyprus-1 block number or timestamp.');
+    }
+    if (evmTime && blockNumber > 0) {
+      // Quai's EVM TIMESTAMP is the parent work object's time, not the
+      // selected work object's time (go-quai/core/evm.go: NewEVMBlockContext).
+      // Keep calls pinned to this block's state, and verify the parent link.
+      const parent = await this.rpc(() => this.provider.getBlock(Shard.Cyprus1, blockNumber - 1));
+      const parentTime = Number(parent?.woHeader.timestamp);
+      if (typeof parent?.hash !== 'string' || !/^0x[\da-fA-F]{64}$/.test(parent.hash)
+        || parent.hash.toLowerCase() !== block.woHeader.parentHash?.toLowerCase()
+        || parent.woHeader.number !== blockNumber - 1
+        || !Number.isSafeInteger(parentTime) || parentTime < 1 || parentTime > timestamp) {
+        throw new DaoShipsError('CHAIN_ERROR', 'Could not verify the EVM timestamp parent.', { blockNumber });
+      }
+      timestamp = parentTime;
     }
     return { blockNumber, blockHash: block.hash, timestamp };
   }
@@ -337,7 +351,7 @@ export class DaoShipsChain {
 
   async prepareSubmit(dao: string, from: string, data: string, details: string, expiration = 0n): Promise<PreparedTransaction> {
     hex(data); uint(expiration, 40);
-    const block = await this.snapshot();
+    const block = await this.snapshot(true);
     const [shares, threshold, offering, priorVotes] = await Promise.all([
       this.read(dao, 'sharesToken', [], block.blockNumber),
       this.read(dao, 'sponsorThreshold', [], block.blockNumber),

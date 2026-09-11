@@ -149,6 +149,12 @@ const data = encodeProposal([
 const proposal = await chain.prepareSubmit(daoAddress, senderAddress, data, 'Membership grant');
 ```
 
+Proposal preparation verifies the selected block's parent and uses its timestamp
+minus one for historical voting power. Quai's EVM `TIMESTAMP` comes from the parent
+work object; using the selected work object's timestamp can query votes that are
+not yet determined. State reads and simulation remain pinned to the selected block.
+`ChainSnapshot.timestamp` describes the selected work object, not the EVM clock.
+
 Use `decodeProposal(data)` to inspect every CALL action and
 `verifyProposalDataHash(data, committedHash)` to compare with the commitment from a trusted
 chain read. Decoding rejects truncated or noncanonical batches and unsupported operations;

@@ -1,0 +1,25 @@
+{
+  "chainId": 15000,
+  "block": {
+    "hash": "0x5dc1f4aa6fc9ef1690aa1bb2f30aa5712222a059d10ad881631aed4911b1225f",
+    "number": 7782799,
+    "timestamp": 1789165231,
+    "parentHash": "0x539c5490dce454487b5fef63a8eccc5733d726e6819a5d8d1ad136def4e66652"
+  },
+  "parent": {
+    "hash": "0x539c5490dce454487b5fef63a8eccc5733d726e6819a5d8d1ad136def4e66652",
+    "number": 7782798,
+    "timestamp": 1789165223
+  },
+  "observations": [
+    {
+      "timestamp": 1789165230,
+      "code": "CALL_EXCEPTION",
+      "reason": "DAOShipVotes: not yet determined"
+    },
+    {
+      "timestamp": 1789165222,
+      "result": "0x00000000000000000000000000000000000000000000000000000000000003e8"
+    }
+  ]
+}

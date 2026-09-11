@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.3
+
+- Correct proposal offering preflights for Quai's EVM clock: read voting power at
+  the verified parent work object's timestamp minus one, while keeping state reads
+  pinned to the selected block. Reject missing, mismatched or invalid parent headers.
+  Found during funded Orchard CLI governance testing.
+
 ## 0.1.0-alpha.2
 
 - Harden navigator deployment receipt parsing with shared limits and correct unknown

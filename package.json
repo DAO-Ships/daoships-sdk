@@ -1,6 +1,6 @@
 {
   "name": "@daoships/sdk",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "description": "Typed DAOShips protocol SDK for applications, services and agents",
   "type": "module",
   "engines": {

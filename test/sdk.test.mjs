@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { AbiCoder, Interface, keccak256, Shard } from 'quais';
 import {
   DAO_SHIP_ABI, DaoShipsChain, DaoShipsIndexer, DaoShipsError, ProposalState,
@@ -25,8 +26,9 @@ function provider(options = {}) {
     calls,
     async getNetwork() { return { chainId: options.chainId ?? 15000n }; },
     async getBlock(shard, tag) {
-      assert.equal(shard, Shard.Cyprus1); assert.ok(tag === 'latest' || tag === 42);
-      return { hash: '0x' + 'aa'.repeat(32), woHeader: { number: 42, timestamp: '0x6553f100' } };
+      assert.equal(shard, Shard.Cyprus1); assert.ok(tag === 'latest' || tag === 42 || tag === 41);
+      if (tag === 41) return { hash: '0x' + 'bb'.repeat(32), woHeader: { number: 41, timestamp: 1699999970 } };
+      return { hash: '0x' + 'aa'.repeat(32), woHeader: { number: 42, timestamp: '0x6553f100', parentHash: '0x' + 'bb'.repeat(32) } };
     },
     async call(tx) {
       calls.push(tx);
@@ -153,8 +155,45 @@ test('submit offering uses historical votes and threshold capped at supply', asy
     assert.equal(plan.value, value);
     const prior = mock.calls.map(tx => { try { return iface.parseTransaction(tx); } catch { return null; } })
       .find(tx => tx?.name === 'getPriorVotes');
-    assert.equal(prior.args[1], 1699999999n);
+    assert.equal(prior.args[1], 1699999969n, 'Historical votes use the EVM parent timestamp minus one.');
   }
+});
+
+test('submit preflight fails closed on missing, reorged or malformed EVM timestamp parents', async () => {
+  const valid = { hash: '0x' + 'bb'.repeat(32), woHeader: { number: 41, timestamp: 1699999970 } };
+  for (const parent of [null, { ...valid, hash: '0x' + 'cc'.repeat(32) },
+    { ...valid, woHeader: { number: 40, timestamp: 1699999970 } },
+    { ...valid, woHeader: { number: 41, timestamp: 1700000001 } },
+    { ...valid, woHeader: { number: 41, timestamp: 0 } },
+    { ...valid, woHeader: { number: 41, timestamp: 'invalid' } }]) {
+    const mock = provider(), original = mock.getBlock;
+    mock.getBlock = async (shard, tag) => tag === 41 ? parent : original(shard, tag);
+    await assert.rejects(new DaoShipsChain(mock, 15000).prepareSubmit(DAO, WALLET, actionData, 'proposal'), hasCode('CHAIN_ERROR'));
+    assert.equal(mock.calls.length, 0, 'Never simulate using an unverified voting timestamp.');
+  }
+});
+
+test('captured Orchard block reproduces the parent-clock proposal regression offline', async () => {
+  const fixture = JSON.parse(await readFile(new URL('fixtures/orchard-clock-7782799.json', import.meta.url), 'utf8'));
+  const mock = provider({ votes: 1000n }), original = mock.call;
+  mock.getBlock = async (shard, tag) => {
+    assert.equal(shard, Shard.Cyprus1);
+    const b = tag === fixture.parent.number ? fixture.parent : fixture.block;
+    return { hash: b.hash, woHeader: b };
+  };
+  mock.call = async request => {
+    assert.equal(request.blockTag, fixture.block.number);
+    const parsed = request.to === DAO ? iface.parseTransaction(request) : null;
+    if (parsed?.name === 'getPriorVotes') {
+      assert.equal(parsed.args[1], BigInt(fixture.observations[1].timestamp));
+      assert(parsed.args[1] < BigInt(fixture.parent.timestamp));
+      return fixture.observations[1].result;
+    }
+    return original({ ...request, blockTag: 42 });
+  };
+  const prepared = await new DaoShipsChain(mock, 15000).prepareSubmit(DAO, WALLET, actionData, 'Orchard clock regression');
+  assert.equal(prepared.value, 0n);
+  assert.equal(prepared.checkedAt.blockNumber, fixture.block.number);
 });
 
 test('vote and sponsor preparations enforce state and simulate permissions', async () => {
