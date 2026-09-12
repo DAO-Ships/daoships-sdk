@@ -1,6 +1,7 @@
 # DAO and navigator function coverage
 
-Audited 2026-09-11 against current Solidity artifacts. All **228 functions** on DAOShip
+Reverified 2026-09-12 against current Solidity artifacts with SDK `0.1.0-alpha.3`.
+All **228 functions** on DAOShip
 and the eight navigators are available through typed SDK clients, including inherited
 methods and overloads. The local Solidity suites successfully execute every write and
 read every getter through the SDK. This is function coverage, not exhaustive branch,
@@ -9,17 +10,23 @@ adversarial or live-network coverage.
 | Contract | Typed functions | Local SDK reads | Local SDK writes | Recorded Orchard evidence |
 | --- | ---: | ---: | ---: | --- |
 | DAOShip | 62 | 41/41 | 21/21 | Three launches; proposal submission/voting/processing, defeated closure, configuration and navigator grants |
-| OnboarderNavigator | 21 | 16/16 | 5/5 | Deployment and activation |
-| ERC20TributeNavigator | 19 | 13/13 | 6/6 | Deployment and activation |
-| NFTGatedNavigator | 24 | 20/20 | 4/4 | Deployment and activation |
-| SignalNavigator | 19 | 16/16 | 3/3 | Deployment and governance endorsement |
-| TimelockNavigator | 20 | 14/14 | 6/6 | Deployment and activation |
-| VestingNavigator | 14 | 9/9 | 5/5 | Deployment and activation |
-| BudgetNavigator | 17 | 10/10 | 7/7 | Deployment and vault module activation, including a non-owner proposer |
-| SubscriptionNavigator | 32 | 24/24 | 8/8 | Deployment and activation |
-| Total | **228** | **163/163** | **65/65** | Business lifecycles require a separate live acceptance phase |
+| OnboarderNavigator | 21 | 16/16 | 5/5 | Deployment, activation and native onboarding |
+| ERC20TributeNavigator | 19 | 13/13 | 6/6 | Deployment, activation and ERC20 tribute |
+| NFTGatedNavigator | 24 | 20/20 | 4/4 | Deployment, activation and membership claim |
+| SignalNavigator | 19 | 16/16 | 3/3 | Deployment, governance endorsement and weighted voting |
+| TimelockNavigator | 20 | 14/14 | 6/6 | Deployment, activation and execution after the real delay |
+| VestingNavigator | 14 | 9/9 | 5/5 | Deployment, activation and claims |
+| BudgetNavigator | 17 | 10/10 | 7/7 | Deployment, vault module activation, funding, spending and cancellation |
+| SubscriptionNavigator | 32 | 24/24 | 8/8 | Deployment, activation and fee payment |
+| Total | **228** | **163/163** | **65/65** | Core business workflows recorded; not every write or branch exercised live |
 
 ## Executable checks
+
+The 2026-09-12 review passed `npm run validate:workspace`: 339 SDK tests, coverage
+gates, declaration consumers, package checks, source/ABI parity, all local Solidity
+suites and 13 adapter conformance tests. The full package exposes 353 functions and
+103 events across 17 interfaces. Read-only chain identity and explicit Cyprus-1 block
+reads passed on both Orchard and mainnet; this review sent no new live transactions.
 
 All four local Solidity suites and source/ABI/type parity passed again during the
 [2026-09-11 SDK review](SDK_AUDIT_2026-09-11.md), which records current behavioral
@@ -67,7 +74,7 @@ are included in `0.1.0-alpha.2`.
 import { DaoShipsProvider } from '@daoships/sdk';
 
 const provider = new DaoShipsProvider(
-  'https://orchard.rpc.quai.network/cyprus1', 15000, { usePathing: true },
+  'https://orchard.rpc.quai.network/cyprus1', 15000, { usePathing: false },
 );
 // Pass this provider to Navigator, ContractClient, DaoShipsChain and your signer.
 ```
@@ -88,13 +95,13 @@ formatter compatibility, not funded mainnet lifecycle acceptance.
 
 ## Remaining gaps
 
-1. **Live business execution:** Orchard has verified launch/activation and recovery,
-   but not all 65 writes. Add a separate resumable phase for onboarding, tribute/NFT
-   claims, polls, timelocks, vesting, budget payments and subscription collection,
-   plus the remaining DAO operations. Use separate fixtures/evidence so changes to
-   supplies, configuration or locks do not invalidate the completed activation run.
-   Payments need an explicit nonzero test-value budget; the activation config has
-   `maxValuePerTransaction: 0`.
+1. **Remaining live execution:** The separate
+   [CLI acceptance campaign](https://github.com/DAO-Ships/daoships-cli/blob/main/docs/orchard-testing.md)
+   completed 23 confirmed transactions across 15 scenarios, with 16 exact contract
+   rejection checks. It covers the core business workflows in the table above and
+   reruns completed work without broadcasting again. It does not cover all 65 writes,
+   every privileged mutation or permit variant, hour-long subscription delinquency,
+   or budget period rollover. Preserve its separate fixtures and transaction evidence.
 2. **Boundary and hostile-token coverage:** Further SDK-driven cases include
    fee-on-transfer tribute/subscriptions, permit frontrunning with allowance fallback,
    delegated-vote snapshot changes, repeated partial vesting claims before revocation,

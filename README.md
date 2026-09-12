@@ -25,7 +25,7 @@ a compatibility alias.
 ## Install and validate
 
 ```sh
-npm install @daoships/sdk@0.1.0-alpha.2
+npm install @daoships/sdk@0.1.0-alpha.3
 ```
 
 The `alpha` dist-tag tracks prereleases. This package is licensed under [MIT](LICENSE).
@@ -65,10 +65,10 @@ public endpoints. These constructors do not load keys or create wallets.
 import { DaoShipsProvider } from '@daoships/sdk';
 
 const mainnet = new DaoShipsProvider(
-  'https://rpc.quai.network/cyprus1', 9, { usePathing: true },
+  'https://rpc.quai.network/cyprus1', 9, { usePathing: false },
 );
 const orchard = new DaoShipsProvider(
-  'https://orchard.rpc.quai.network/cyprus1', 15000, { usePathing: true },
+  'https://orchard.rpc.quai.network/cyprus1', 15000, { usePathing: false },
 );
 ```
 
