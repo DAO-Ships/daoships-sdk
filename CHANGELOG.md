@@ -1,7 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-alpha.4
 
+- Read canonical record order by default. `DaoShipsData` and `connectDaoShipsSupabase`
+  now request record transaction/log positions (`recordOrdering` defaults to `true`), so
+  same-block profile updates resolve by actual event order. Both hosted schemas carry the
+  indexer migration and a complete receipt-verified backfill (2026-09-23). Pass
+  `recordOrdering: false` for a self-hosted indexer without the migration.
+- Fix indexer column filters on values containing `. , : * ( ) "`, backslashes or
+  whitespace. The SDK wrapped them in double quotes, which PostgREST parses only inside
+  in-lists and and/or groups; after `eq.` the quotes became part of the value, so the
+  filter matched nothing. Every Poster tag contains dots: `getMemberProfile` returned
+  `no-record` for existing profiles, navigator allowlist discovery never found a record,
+  and activity-feed `created_at` filters were empty. Verified on the hosted indexer;
+  injection text still matches no rows rather than widening a query.
 - Read historical mainnet blocks. quais (through 1.0.0-alpha.57) throws `BAD_DATA`
   from `getBlock()` for mainnet blocks more than a few hundred thousand behind the
   head, whose `totalEntropy` the node returns as null, so receipt-block checks in

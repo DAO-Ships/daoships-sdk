@@ -25,7 +25,7 @@ a compatibility alias.
 ## Install and validate
 
 ```sh
-npm install @daoships/sdk@0.1.0-alpha.3
+npm install @daoships/sdk@0.1.0-alpha.4
 ```
 
 The `alpha` dist-tag tracks prereleases. This package is licensed under [MIT](LICENSE).
