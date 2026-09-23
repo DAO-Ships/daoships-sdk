@@ -19,8 +19,10 @@ transient failures. Runs for the same tag are serialized without cancelling an u
 4. Check the release workflow, npm version, dist-tag, integrity and consumer installation.
    Create the GitHub release for the same tag once publication succeeds.
 
-Prereleases use their named channel: `0.1.0-alpha.1` publishes to `alpha`.
-Stable versions use `latest`. The workflow rejects mismatched tags, invalid metadata
+Every tagged release, prerelease or stable, publishes to `latest`, so a plain
+`npm install @daoships/sdk` gets it. Trusted publishing authorizes only `npm publish`,
+which sets one dist-tag, so no other dist-tag is advanced. The historical `alpha`
+dist-tag is no longer maintained. The workflow rejects mismatched tags, invalid metadata
 and missing source acceptance for the exact tagged commit. An already published version
 cannot be overwritten: use a new version for changed package contents.
 

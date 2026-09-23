@@ -21,7 +21,10 @@ export function validateReleaseMetadata(manifest, { licenseText, ref, repository
   assert.equal(manifest.publishConfig?.registry, 'https://registry.npmjs.org/');
   if (ref !== undefined) assert.equal(ref, `refs/tags/v${manifest.version}`, 'Release tag must exactly match package version.');
   if (repository !== undefined) assert.equal(match[1].toLowerCase(), repository.toLowerCase(), 'Provenance repository differs from the package metadata.');
-  return { version: manifest.version, distTag: version[4] ?? 'latest' };
+  // Every tagged release becomes `latest`, so a plain install gets it. Trusted
+  // publishing authorizes only `npm publish`, which sets a single dist-tag; a
+  // prerelease channel published this way could not also move `latest`.
+  return { version: manifest.version, distTag: 'latest' };
 }
 
 export async function checkRelease(environment = process.env, workspace = false) {
