@@ -134,7 +134,8 @@ test('final indexer: iteration snapshots filter identity and cancellation uses i
 
 test('final indexer: allowlist discovery targets the navigator including orphan records and validates returned identity', async () => {
   const result = await client(async url => {
-    assert.equal(url.searchParams.get('tag'), 'eq."daoships.navigator.allowlist"');
+    // Plain filters are literal after eq.; quoting here matched nothing on the hosted indexer.
+    assert.equal(url.searchParams.get('tag'), 'eq.daoships.navigator.allowlist');
     assert.equal(url.searchParams.get('and'), `(or(dao_id.eq."${DAO}",dao_id.is.null),content_json->>navigatorAddress.eq."${NAV}")`);
     assert.equal(url.searchParams.get('order'), 'created_at.desc,id.asc');
     assert.equal(url.searchParams.get('limit'), '1');
@@ -162,4 +163,16 @@ test('final indexer: proposal summaries omit encoded actions but retain precisio
   }).listProposalSummaries(DAO, { filters: { dao_id: NAV, processed: false }, orderBy: 'proposal_id', direction: 'desc' });
   assert.equal(page.items[0].proposal_id, '9007199254740993');
   assert.equal(Object.hasOwn(page.items[0], 'proposal_data'), false);
+});
+
+test('final indexer: plain column filters send values literally, including reserved characters', async () => {
+  // PostgREST parses quotes only inside in-lists and and/or groups; after `eq.` they
+  // become part of the value. The hosted indexer returned no rows for quoted tags.
+  const content = '{"name":"Indexer test (record ordering)","bio":"a, b: c. \\\\ d"}';
+  await client(async url => {
+    assert.equal(url.searchParams.get('tag'), 'eq.daoships.member.profile');
+    assert.equal(url.searchParams.get('content'), `eq.${content}`);
+    assert.equal(url.searchParams.get('created_at'), 'eq.2026-09-09T00:00:00.123Z');
+    return Response.json([]);
+  }).list('records', { filters: { tag: 'daoships.member.profile', content, created_at: '2026-09-09T00:00:00.123Z' } });
 });

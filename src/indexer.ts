@@ -273,7 +273,10 @@ export class DaoShipsIndexer {
     };
     for (const [key, value] of Object.entries(options.filters ?? {})) {
       const encoded = encodeValue(key, value);
-      filters[key] = encoded === null ? 'is.null' : `eq.${/[,.:*()"\\\s]/.test(encoded) ? quotedLiteral(encoded) : encoded}`;
+      // A plain column filter takes its value literally after `eq.`; PostgREST parses
+      // double quotes only inside in-lists and and/or groups, where `where` quotes them.
+      // Quoting here made every value with a dot (all Poster tags) match nothing.
+      filters[key] = encoded === null ? 'is.null' : `eq.${encoded}`;
     }
     if (options.where !== undefined) {
       if (!Array.isArray(options.where) || options.where.length > 100) throw new DaoShipsError('INVALID_ARGUMENT', 'Expected at most 100 AND conditions.');

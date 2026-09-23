@@ -69,15 +69,17 @@ test('audit: JSON complexity and transport-provided objects cannot exhaust recur
   assert.equal({}.polluted, undefined);
 });
 
-test('audit: PostgREST quoted literals preserve control characters, quotes and injection text', async () => {
+test('audit: filters preserve control characters, quotes and injection text', async () => {
   const values = ['line\nbreak\tand\rcarriage', 'quoted"\\value', 'x),or(id.eq.secret)', 'a.b:c*'];
   for (const value of values) {
     await client(async url => {
-      const eq = url.searchParams.get('tag').slice(3);
+      // A plain filter is literal after `eq.`: PostgREST does not parse quotes or logic
+      // there, so injection text stays data (checked on the hosted indexer, where these
+      // values match no rows rather than widening the query).
+      assert.equal(url.searchParams.get('tag'), `eq.${value}`);
       const condition = url.searchParams.get('and').slice('(content.eq.'.length, -1);
-      // PostgREST consumes backslash followed by any character; it is not JSON.
+      // Inside and/or groups PostgREST consumes backslash followed by any character; it is not JSON.
       const parseLiteral = input => input.slice(1, -1).replace(/\\([\s\S])/g, '$1');
-      assert.equal(parseLiteral(eq), value);
       assert.equal(parseLiteral(condition), value);
       assert.equal(url.searchParams.size, 6);
       return Response.json([]);
@@ -124,7 +126,7 @@ test('audit: every DAO-scoped lifecycle feed enforces DAO scope while preserving
     await client(async url => {
       assert.equal(url.pathname, `/rest/v1/ds_${table}`, method);
       assert.equal(url.searchParams.get('dao_id'), `eq.${DAO}`, method);
-      assert.equal(url.searchParams.get('created_at'), 'eq."2026-09-09T00:00:00Z"', method);
+      assert.equal(url.searchParams.get('created_at'), 'eq.2026-09-09T00:00:00Z', method);
       assert.equal(url.searchParams.get('order'), 'created_at.desc,id.asc', method);
       assert.equal(url.searchParams.get('offset'), '10');
       assert.equal(url.searchParams.get('limit'), '3');
