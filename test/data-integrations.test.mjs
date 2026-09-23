@@ -12,7 +12,8 @@ const encode58 = bytes => { let value = BigInt(`0x${Buffer.from(bytes).toString(
 const CID = encode58([0x12, 0x20, ...Array(32).fill(0)]);
 const base32 = bytes => { let bits = ''; for (const byte of bytes) bits += byte.toString(2).padStart(8, '0'); bits = bits.padEnd(Math.ceil(bits.length / 5) * 5, '0'); return 'b' + bits.match(/.{5}/g).map(part => 'abcdefghijklmnopqrstuvwxyz234567'[parseInt(part, 2)]).join(''); };
 const CID1 = base32([1, 0x70, 0x12, 0x20, ...Array(32).fill(0)]);
-const fixture = (table, patch = {}) => ({ ...Object.fromEntries(Object.entries(indexerShapes[table]).map(([key, kind]) => [key, kind.endsWith('?') ? null : kind === 'integer' ? 1 : kind === 'boolean' ? false : kind === 'amount' ? '0' : kind === 'string[]' ? [] : kind === 'json' ? {} : 'value'])), ...patch });
+// Record rows carry the hosted schema's nullable event positions (ordered reads are the default).
+const fixture = (table, patch = {}) => ({ ...Object.fromEntries(Object.entries(indexerShapes[table]).map(([key, kind]) => [key, kind.endsWith('?') ? null : kind === 'integer' ? 1 : kind === 'boolean' ? false : kind === 'amount' ? '0' : kind === 'string[]' ? [] : kind === 'json' ? {} : 'value'])), ...(table === 'records' ? { transaction_index: null, log_index: null } : {}), ...patch });
 const state = fixture('indexer_state', { id: 1, chain_id: 15000, last_block_number: '100', last_block_hash: '0x' + 'ab'.repeat(32), last_indexed_at: '2026-09-09T00:00:00Z', is_syncing: false, requires_full_reindex: false });
 const sdk = fetch => new DaoShipsIndexer({ url: 'https://indexer.test', key: 'public', schema: 'testnet', fetch });
 const indexerFor = (tables, checkpoint = () => state) => sdk(async url => {
@@ -306,7 +307,7 @@ test('joined profiles never choose arbitrary same-block metadata and preserve ma
     cappedReads++;
     return Response.json(Number(url.searchParams.get('offset')) === 0 ? [first] : [second]);
   });
-  assert.equal((await new DaoShipsData(capped).getDaoProfile(DAO, readOptions)).profileAmbiguous, true);
+  assert.equal((await new DaoShipsData(capped, { recordOrdering: false }).getDaoProfile(DAO, readOptions)).profileAmbiguous, true);
   assert.equal(cappedReads, 2);
 
   // Sort by the original SQL numeric block column, not timestamp or decimal
@@ -319,12 +320,12 @@ test('joined profiles never choose arbitrary same-block metadata and preserve ma
     assert.match(url.searchParams.get('select'), /block_number::text/);
     return Response.json([first, { ...second, block_number: '9007199254740992' }]);
   });
-  const distinct = await new DaoShipsData(client).getDaoProfile(DAO, readOptions);
+  const distinct = await new DaoShipsData(client, { recordOrdering: false }).getDaoProfile(DAO, readOptions);
   assert.equal(distinct.complete, true); assert.equal(distinct.profileAmbiguous, false);
   assert.equal(distinct.profileReason, 'latest-record'); assert.equal(distinct.metadata.banner, 'https://example.test/first');
 });
 
-test('opt-in profile ordering uses actual event positions and conservatively preserves legacy ambiguity', async () => {
+test('profile ordering (default) uses actual event positions and conservatively preserves legacy ambiguity', async () => {
   const dao = fixture('daos', { id: DAO, avatar: NAV, deployer: USER, profile_source: 'vault' });
   const first = fixture('records', { id: 'hash-a', dao_id: DAO, user_address: NAV, tag: 'daoships.dao.profile', trust_level: 'VERIFIED', block_number: '100', transaction_index: 4, log_index: 12, content_json: { schemaVersion: '1.0', daoAddress: DAO, banner: 'https://example.test/new' } });
   const second = { ...first, id: 'hash-z', transaction_index: 3, log_index: 9 };
@@ -363,5 +364,9 @@ test('opt-in profile ordering uses actual event positions and conservatively pre
     assert.equal(url.searchParams.get('select').includes('transaction_index'), false);
     return Response.json(url.pathname.endsWith('ds_indexer_state') ? [state] : url.pathname.endsWith('ds_daos') ? [dao] : Number(url.searchParams.get('offset')) === 0 ? [legacy] : []);
   });
-  assert.equal((await new DaoShipsData(compatible).getDaoProfile(DAO, readOptions)).complete, true);
+  assert.equal((await new DaoShipsData(compatible, { recordOrdering: false }).getDaoProfile(DAO, readOptions)).complete, true);
+  queried = false;
+  const byDefault = await new DaoShipsData(ordered([first, second])).getDaoProfile(DAO, readOptions);
+  assert.equal(queried, true, 'ordered reads are the default');
+  assert.equal(byDefault.complete, true); assert.equal(byDefault.metadata.banner, 'https://example.test/new');
 });

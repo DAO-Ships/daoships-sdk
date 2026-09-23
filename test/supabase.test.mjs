@@ -95,3 +95,20 @@ test('hosted connector rejects an invalid record-ordering policy before requesti
     fetch() { throw Error('Invalid configuration must not request data.'); },
   }), { code: 'INVALID_ARGUMENT' });
 });
+
+test('hosted connector reads canonical record order by default, with an explicit opt-out', async () => {
+  const DAO = '0x0011111111111111111111111111111111111111', MEMBER = '0x0022222222222222222222222222222222222222';
+  for (const [recordOrdering, expected] of [[undefined, true], [true, true], [false, false]]) {
+    const selects = [];
+    const fetch = async input => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      if (url.pathname.endsWith('ds_indexer_state')) return Response.json([state()]);
+      if (url.pathname.endsWith('ds_records')) selects.push(url.searchParams.get('select'));
+      return Response.json([]);
+    };
+    const connection = await connectDaoShipsSupabase({ network: 'testnet', publishableKey: KEY, fetch, ...(recordOrdering === undefined ? {} : { recordOrdering }) });
+    await connection.data.getMemberProfile(DAO, MEMBER, { chainId: 15000 });
+    assert.ok(selects.length > 0);
+    assert.equal(selects.every(select => select.includes('transaction_index,log_index')), expected, `recordOrdering=${recordOrdering}`);
+  }
+});

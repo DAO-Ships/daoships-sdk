@@ -124,7 +124,7 @@ export class DaoShipsData {
   private readonly recordOrdering: boolean;
   constructor(private readonly indexer: DaoShipsIndexer, options: { recordOrdering?: boolean } = {}) {
     if (options.recordOrdering !== undefined && typeof options.recordOrdering !== 'boolean') throw new DaoShipsError('INVALID_ARGUMENT', 'recordOrdering must be boolean.');
-    this.recordOrdering = options.recordOrdering ?? false;
+    this.recordOrdering = options.recordOrdering ?? true;
   }
   private async profileRecords(query: IndexerQueryOptions<'records'>, signal: AbortSignal) {
     if (!this.recordOrdering) return (await tableSnapshot(this.indexer, 'records', query, { maxRows: 2, maxPages: 2, pageSize: 2 }, signal)).items;

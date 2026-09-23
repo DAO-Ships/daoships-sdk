@@ -97,13 +97,14 @@ errors. No writes, public transactions, realtime delivery or IPFS availability a
 
 See [release readiness](RELEASE_READINESS.md) for observed live results and remaining gaps.
 
-## Optional canonical record ordering
+## Canonical record ordering
 
-After deploying the indexer's transaction/log-position migration and updated handler,
-pass `recordOrdering: true` to `connectDaoShipsSupabase`. Its `data` facade then requests
-optional record positions and resolves known same-block order. The default remains false
-for compatibility with existing hosted schemas. Enabling this option against an unmigrated
-schema fails on the first ordered record read; startup does not migrate or probe those columns.
+`connectDaoShipsSupabase` reads canonical record order by default: its `data` facade requests
+record transaction/log positions and resolves known same-block order. Both hosted schemas
+carry the indexer's position migration, updated handler and a complete receipt-verified
+backfill (2026-09-23). Pass `recordOrdering: false` only for a self-hosted indexer without the
+migration; ordered reads there fail on the first record read, since startup does not migrate
+or probe those columns.
 Missing historical positions stay incomplete when their order matters. Apply the migration
 and use the indexer receipt backfill procedure before claiming complete historical profiles.
 

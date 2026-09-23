@@ -34,7 +34,7 @@ remain required. Coverage and source parity do not establish freedom from vulner
 | npm preparation | Pinned GitHub Actions prepare Node 22/24/26 CI, immutable sibling-source acceptance, tagged public publication and npm provenance through OIDC. Release metadata and successful source acceptance on the same SDK commit are required. The public SDK repository and CLI ownership are established; the initial alpha uses MIT and is prepared for CLI publication. Hosted CI/source acceptance passed. Future automated publication remains disabled. |
 | IPFS | ABI/bytecode resources default to `ipfs.qu.ai`; other content defaults to `ipfs.io`, with explicit overrides. Reads bound body size, parsing complexity, time and cancellation. Bytecode requires an independently trusted keccak256 hash. JSON/ABI results distinguish gateway retrieval from trusted raw-byte SHA-256 verification. |
 | Hosted realtime | A real testnet checkpoint channel delivered changes, recovered from a forced socket interruption, refreshed snapshots and removed all channels. The adapter still treats realtime as invalidation and refetches authoritative rows. |
-| Profile order | The indexer records actual transaction/log positions for new Poster events. An additive migration and receipt-verified backfill are prepared. SDK ordered reads are opt-in; legacy schemas remain compatible, and unknown historical order remains explicitly incomplete. Accepted banner/theme-only vault posts also establish DAO profile authority, preventing later launcher overwrite. |
+| Profile order | The indexer records actual transaction/log positions for new Poster events. The additive migration and receipt-verified backfill are applied to both hosted schemas (2026-09-23; no record left without a position). SDK ordered reads are the default, with `recordOrdering: false` for unmigrated self-hosted schemas; unknown order remains explicitly incomplete. Accepted banner/theme-only vault posts also establish DAO profile authority, preventing later launcher overwrite. |
 | App artifact parity | All eight app navigator creation artifacts match source-verified compiler output. Onboarder, ERC20Tribute, NFTGated and Signal copies were updated, with matching metadata CID fixtures. This does not claim already deployed contracts changed. |
 | Native Quai workflows | Navigator plans can explicitly include the four-byte CREATE suffix and nonce used by pinned quais, and verify the corresponding predicted address. Exact calldata validation retains the reviewed suffix. Existing local EVM workflows remain supported. |
 | Orchard acceptance | An explicit chain-15000 harness implements all three launch routes, all eight governance activations, non-owner Budget activation, durable intermediate transaction IDs and restart reconciliation. Separate recovery scenarios cover stale preparation, rejected signing and an injected lost broadcast acknowledgement. Keys are only read in explicit execute mode. |
@@ -75,12 +75,11 @@ performed in this hardening work. The realtime check did not induce a reorg or w
 1. Resolve the configured Orchard launcher getter failure, then run the reviewed configuration with dedicated funded wallets; retain receipts,
    contract identities and restart evidence. Native shard behavior, replacement races,
    provider diversity and finality still require live validation.
-2. Apply the indexer ordering migration before deploying the updated handler, then preview
-   and apply the bounded historical backfill. The indexer repository's
-   `docs/RECORD_EVENT_ORDER.md` gives the exact procedure. Enable `recordOrdering: true`
-   only when the service supports it. Existing missing evidence is never invented. Older incorrect profile-authority flags or
-   launcher overwrites require a separate canonical-history repair; the position backfill
-   does not repair materialized metadata.
+2. ~~Apply the indexer ordering migration before deploying the updated handler, then preview
+   and apply the bounded historical backfill.~~ Done 2026-09-22/23 on both hosted schemas, per the
+   indexer repository's `docs/RECORD_EVENT_ORDER.md`; `recordOrdering` now defaults to true. Existing missing evidence is never invented. Older incorrect profile-authority flags or
+   launcher overwrites would require a separate canonical-history repair (the position backfill
+   does not repair materialized metadata); none is needed on either hosted schema (checked 2026-09-23).
 3. Publish and verify the initial MIT-licensed alpha through the authenticated CLI.
    The GitHub repository exists, npm scope ownership is verified, and hosted CI/source
    acceptance passed. Release metadata now declares MIT and public npm access. Future automated

@@ -23,7 +23,8 @@ export interface DaoShipsSupabaseOptions extends Pick<IndexerOptions, 'fetch' | 
   publishableKey?: string;
   /** Defaults to the network's schema. Overrides retain the network's chain check. */
   schema?: string;
-  /** Enable only after applying/backfilling the indexer's optional record-ordering migration. */
+  /** Read canonical transaction/log order for profile records (default true; both hosted schemas carry it).
+   * Pass false only for a self-hosted indexer without the record-ordering migration. */
   recordOrdering?: boolean;
   signal?: AbortSignal;
   /** Startup freshness/lag requirements; maxAgeMs defaults to 5 minutes, using the local clock. */
@@ -40,7 +41,7 @@ export async function connectDaoShipsSupabase(options: DaoShipsSupabaseOptions) 
   if (typeof network !== 'string' || !Object.hasOwn(DAOSHIPS_INDEXER_NETWORKS, network)) {
     throw new DaoShipsError('INVALID_ARGUMENT', 'Select the mainnet or testnet indexer explicitly.');
   }
-  const { signal, fetch, timeoutMs, maxResponseBytes, recordOrdering = false } = options;
+  const { signal, fetch, timeoutMs, maxResponseBytes, recordOrdering = true } = options;
   if (typeof recordOrdering !== 'boolean') throw new DaoShipsError('INVALID_ARGUMENT', 'recordOrdering must be boolean.');
   const { chainId, schema: defaultSchema } = DAOSHIPS_INDEXER_NETWORKS[network];
   const url = options.url ?? DAOSHIPS_SUPABASE.url;
