@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Read historical mainnet blocks. quais (through 1.0.0-alpha.57) throws `BAD_DATA`
+  from `getBlock()` for mainnet blocks more than a few hundred thousand behind the
+  head, whose `totalEntropy` the node returns as null, so receipt-block checks in
+  deployment workflows and transaction recovery (inspection and replacement scans)
+  failed for older mainnet transactions. Numbered block reads now retry a quais
+  formatting failure as a raw `quai_getBlockByNumber` through the provider's
+  `send()`, returning only the fields SDK checks read. Recent blocks and providers
+  without `send()` behave as before. Verified on mainnet with `DaoShipsProvider`
+  and `JsonRpcProvider`, including a replacement scan over a July block.
+
 ## 0.1.0-alpha.3
 
 - Correct proposal offering preflights for Quai's EVM clock: read voting power at

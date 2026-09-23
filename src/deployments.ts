@@ -1,5 +1,6 @@
 import { Interface, Shard, ZeroAddress, type Provider } from 'quais';
 import { DaoShipsError } from './errors.js';
+import { readBlock } from './blocks.js';
 import { address, hex, type Hex } from './values.js';
 import { isCyprus1Address } from './launch-create2.js';
 
@@ -81,7 +82,7 @@ export async function discoverDeployment(provider: DeploymentProvider, options: 
       if (bytes(await rpc(() => provider.getCode(to, blockNumber))) === '0x') throw new DaoShipsError('INVALID_RESPONSE', `${name} has no deployed bytecode.`, { name, address: to, blockNumber });
     }));
     // Protect a block-number-pinned walk against a reorg during the read batch.
-    const after = await rpc(() => provider.getBlock(Shard.Cyprus1, blockNumber));
+    const after = await rpc(() => readBlock(provider, Shard.Cyprus1, blockNumber));
     if (after?.hash !== blockHash || after.woHeader?.number !== blockNumber) throw new DaoShipsError('CHAIN_ERROR', 'Deployment snapshot block changed during discovery.');
     await checkNetwork();
     return { chainId, blockNumber, blockHash, contracts };

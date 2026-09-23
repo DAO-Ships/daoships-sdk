@@ -1,6 +1,7 @@
 import { getZoneForAddress, toShard, type Shard, type TransactionResponse } from 'quais';
 import type { PreparedTransaction } from './chain.js';
 import { DaoShipsError } from './errors.js';
+import { readBlock } from './blocks.js';
 import { sendPreparedTransaction, type TransactionSigner, type WaitableTransaction } from './transactions.js';
 import { address, hex, uint, type Hex } from './values.js';
 
@@ -404,7 +405,7 @@ export async function inspectRecoveryTransaction(store: TransactionRecoveryStore
     const status = receipt.status;
     if (status !== 0 && status !== 1) return { tx, receipt: undefined };
     const blockNumber = integer(receipt.blockNumber), blockHash = hash(receipt.blockHash);
-    const [canonicalRaw, headRaw] = await Promise.all([bounded(() => provider.getBlock(toShard(zone), blockNumber), timeoutMs), bounded(() => provider.getBlock(toShard(zone), 'latest'), timeoutMs)]);
+    const [canonicalRaw, headRaw] = await Promise.all([bounded(() => readBlock(provider, toShard(zone), blockNumber), timeoutMs), bounded(() => provider.getBlock(toShard(zone), 'latest'), timeoutMs)]);
     const canonical = canonicalRaw as { hash?: string; woHeader?: { number?: number } } | null;
     const head = headRaw as { woHeader?: { number?: number } } | null;
     if (!canonical || (typeof canonical.hash !== 'string' || canonical.hash.toLowerCase() !== blockHash) || canonical.woHeader?.number !== blockNumber) return { tx, receipt: undefined };
@@ -509,7 +510,7 @@ export async function scanRecoveryReplacements(provider: RecoveryProvider, inten
   const result: RecoveryScanResult = { candidates: [], scannedBlocks: 0, scannedTransactions: 0, complete: true };
   const scanned: { number: number; hash: Hex }[] = [];
   for (let number = fromBlock; number <= toBlock; number++) {
-    const raw = await bounded(() => provider.getBlock(toShard(zone), number), timeoutMs);
+    const raw = await bounded(() => readBlock(provider, toShard(zone), number), timeoutMs);
     const block = raw as { hash?: unknown; woHeader?: { number?: unknown }; transactions?: unknown } | null;
     if (!block || block.woHeader?.number !== number || !Array.isArray(block.transactions)) { result.complete = false; continue; }
     const blockHash = hash(block.hash);
@@ -536,7 +537,7 @@ export async function scanRecoveryReplacements(provider: RecoveryProvider, inten
   }
   // Re-read every scanned height so observed reorgs invalidate affected candidates.
   for (const block of scanned) {
-    const canonical = await bounded(() => provider.getBlock(toShard(zone), block.number), timeoutMs) as { hash?: unknown; woHeader?: { number?: unknown } } | null;
+    const canonical = await bounded(() => readBlock(provider, toShard(zone), block.number), timeoutMs) as { hash?: unknown; woHeader?: { number?: unknown } } | null;
     if (!canonical || (typeof canonical.hash !== 'string' || canonical.hash.toLowerCase() !== block.hash) || canonical.woHeader?.number !== block.number) {
       result.complete = false;
       result.candidates = result.candidates.filter(candidate => candidate.blockNumber !== block.number);

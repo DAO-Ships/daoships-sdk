@@ -1,6 +1,7 @@
 import { Interface, Shard, ZeroAddress, isQuaiAddress, checkResultErrors, type Provider } from 'quais';
 import { DAO_SHIP_ABI } from './abi.js';
 import { DaoShipsError } from './errors.js';
+import { readBlock } from './blocks.js';
 import { hashProposalData } from './encoding.js';
 import { address, hex, proposalId, uint, type Hex } from './values.js';
 import { CONTRACT_ABIS } from './abis.js';
@@ -103,7 +104,7 @@ export class DaoShipsChain {
       // Quai's EVM TIMESTAMP is the parent work object's time, not the
       // selected work object's time (go-quai/core/evm.go: NewEVMBlockContext).
       // Keep calls pinned to this block's state, and verify the parent link.
-      const parent = await this.rpc(() => this.provider.getBlock(Shard.Cyprus1, blockNumber - 1));
+      const parent = await this.rpc(() => readBlock(this.provider, Shard.Cyprus1, blockNumber - 1));
       const parentTime = Number(parent?.woHeader.timestamp);
       if (typeof parent?.hash !== 'string' || !/^0x[\da-fA-F]{64}$/.test(parent.hash)
         || parent.hash.toLowerCase() !== block.woHeader.parentHash?.toLowerCase()
@@ -120,7 +121,7 @@ export class DaoShipsChain {
   private async verifySnapshot(block: { blockNumber: number; blockHash: string }): Promise<void> {
     try {
       const [network, canonical] = await Promise.all([
-        this.rpc(() => this.provider.getNetwork()), this.rpc(() => this.provider.getBlock(Shard.Cyprus1, block.blockNumber)),
+        this.rpc(() => this.provider.getNetwork()), this.rpc(() => readBlock(this.provider, Shard.Cyprus1, block.blockNumber)),
       ]);
       if (network.chainId !== BigInt(this.chainId)) throw new DaoShipsError('CHAIN_MISMATCH', 'RPC network changed during the snapshot.');
       if (canonical?.hash?.toLowerCase() !== block.blockHash.toLowerCase() || canonical?.woHeader.number !== block.blockNumber) {

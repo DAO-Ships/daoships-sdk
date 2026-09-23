@@ -1,5 +1,6 @@
 import { Shard, Interface, ContractFactory, keccak256, toUtf8Bytes, toBeHex, type Provider } from 'quais';
 import { DaoShipsError } from './errors.js';
+import { readBlock } from './blocks.js';
 import { address, hex, uint, stringify, type Hex } from './values.js';
 import { ContractClient, type EncodedCall, type ContractReadOptions } from './contracts.js';
 import type { PreparedTransaction } from './chain.js';
@@ -229,7 +230,7 @@ function operations(provider: PlanProvider, chainId: number, options: Deployment
   const snapshot = async () => { await network(); const block = await rpc(() => provider.getBlock(Shard.Cyprus1, 'latest'));
     if (!block?.hash || !/^0x[\da-fA-F]{64}$/.test(block.hash) || !Number.isSafeInteger(block.woHeader?.number) || block.woHeader.number < 0) fail('Expected a mined workflow block.', 'INVALID_RESPONSE');
     return { blockNumber: block.woHeader.number, blockHash: block.hash }; };
-  const stable = async (block: { blockNumber: number; blockHash: string }) => { const after = await rpc(() => provider.getBlock(Shard.Cyprus1, block.blockNumber));
+  const stable = async (block: { blockNumber: number; blockHash: string }) => { const after = await rpc(() => readBlock(provider, Shard.Cyprus1, block.blockNumber));
     if (after?.hash !== block.blockHash || after?.woHeader?.number !== block.blockNumber) fail('Workflow block changed during its checks.', 'INVALID_RESPONSE'); await network(); };
   const code = async (target: string, block: number) => { const raw = await rpc(() => provider.getCode(target, block));
     if (typeof raw !== 'string' || raw.length > maxBytes * 2 + 2 || !/^0x(?:[\da-fA-F]{2})*$/.test(raw)) fail('Malformed or unbounded workflow bytecode response.', 'INVALID_RESPONSE'); return raw as Hex; };
@@ -311,7 +312,7 @@ export async function verifyDeploymentWorkflowStep(plan: DeploymentWorkflowPlan,
   if (latest.blockNumber < receipt.blockNumber) fail('Provider is behind the workflow receipt.', 'INVALID_RESPONSE');
   if (latest.blockNumber - receipt.blockNumber + 1 < confirmations) throw new DaoShipsError('TX_PENDING', 'Workflow receipt has not reached the requested confirmation depth.', { hash: receipt.hash, confirmations });
   const read = { ...op.settings, blockTag: receipt.blockNumber, from: plan.from };
-  const block = await op.rpc(() => provider.getBlock(Shard.Cyprus1, receipt.blockNumber));
+  const block = await op.rpc(() => readBlock(provider, Shard.Cyprus1, receipt.blockNumber));
   if (!block?.hash || !/^0x[\da-fA-F]{64}$/.test(block.hash) || block.woHeader?.number !== receipt.blockNumber) fail('Receipt block is unavailable.', 'INVALID_RESPONSE');
   const fixed = { blockNumber: receipt.blockNumber, blockHash: block.hash };
   const fetched = await op.rpc(() => provider.getTransactionReceipt(receipt.hash));
